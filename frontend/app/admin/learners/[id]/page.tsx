@@ -16,10 +16,12 @@ import {
   Pencil,
   X,
   Trash2,
+  Monitor,
+  LogOut,
 } from 'lucide-react';
 import { AdminHeader } from '@/components/admin';
 import { Button, Badge, PageLoading, Modal, Select, getStatusVariant, formatStatus } from '@/components/ui';
-import { useLearner, usePrograms, useUpdateLearnerStatus, useResetLearnerPassword, useEnrollLearner, useUpdateLearner, useUnenrollLearner } from '@/hooks';
+import { useLearner, usePrograms, useUpdateLearnerStatus, useResetLearnerPassword, useEnrollLearner, useUpdateLearner, useUnenrollLearner, useLearnerSessions, useLogoutLearnerAllDevices } from '@/hooks';
 import { format } from 'date-fns';
 
 export default function LearnerDetailPage() {
@@ -36,11 +38,13 @@ export default function LearnerDetailPage() {
 
   const { data, isLoading, refetch } = useLearner(learnerId);
   const { data: programs } = usePrograms();
+  const { data: sessions, refetch: refetchSessions } = useLearnerSessions(learnerId);
   const updateStatus = useUpdateLearnerStatus();
   const resetPassword = useResetLearnerPassword();
   const enrollLearner = useEnrollLearner();
   const updateLearner = useUpdateLearner();
   const unenrollLearner = useUnenrollLearner();
+  const logoutAllDevices = useLogoutLearnerAllDevices();
 
   if (isLoading) {
     return (
@@ -290,6 +294,34 @@ export default function LearnerDetailPage() {
                         isLoading={updateStatus.isPending}
                       >
                         Activate Account
+                      </Button>
+                    )}
+                  </div>
+
+                  {/* Active Sessions */}
+                  <div className="pt-4 mt-4 border-t border-slate-100">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <Monitor className="w-4 h-4 text-slate-400" />
+                        <span className="text-sm font-medium text-slate-700">Active Sessions</span>
+                      </div>
+                      <Badge variant={sessions && sessions.length > 0 ? 'info' : 'neutral'} size="sm">
+                        {sessions?.length || 0} device{(sessions?.length || 0) !== 1 ? 's' : ''}
+                      </Badge>
+                    </div>
+                    {sessions && sessions.length > 0 && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full mt-2 text-red-600 border-red-200 hover:bg-red-50"
+                        leftIcon={<LogOut className="w-4 h-4" />}
+                        onClick={async () => {
+                          await logoutAllDevices.mutateAsync(learner.id);
+                          refetchSessions();
+                        }}
+                        isLoading={logoutAllDevices.isPending}
+                      >
+                        Logout All Devices
                       </Button>
                     )}
                   </div>

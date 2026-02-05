@@ -248,6 +248,17 @@ export const adminApi = {
     return response.data;
   },
 
+  // User Sessions (login sessions)
+  getLearnerSessions: async (learnerId: string) => {
+    const response = await api.get(`/admin/learners/${learnerId}/sessions`);
+    return response.data;
+  },
+
+  logoutLearnerAllDevices: async (learnerId: string) => {
+    const response = await api.post(`/admin/learners/${learnerId}/logout-all`);
+    return response.data;
+  },
+
   getProgramLearners: async (programId: string) => {
     const response = await api.get(`/admin/programs/${programId}/learners`);
     return response.data;

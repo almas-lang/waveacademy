@@ -158,3 +158,31 @@ export function useProgramLearners(programId: string) {
     enabled: !!programId,
   });
 }
+
+// Get active sessions for a learner
+export function useLearnerSessions(learnerId: string) {
+  return useQuery({
+    queryKey: ['admin', 'learners', learnerId, 'sessions'],
+    queryFn: async () => {
+      const response = await adminApi.getLearnerSessions(learnerId);
+      return response.data?.sessions || [];
+    },
+    enabled: !!learnerId,
+  });
+}
+
+// Logout learner from all devices
+export function useLogoutLearnerAllDevices() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (learnerId: string) => adminApi.logoutLearnerAllDevices(learnerId),
+    onSuccess: (response, learnerId) => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'learners', learnerId, 'sessions'] });
+      toast.success(response.message || 'Logged out from all devices');
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.error?.message || 'Failed to logout');
+    },
+  });
+}
