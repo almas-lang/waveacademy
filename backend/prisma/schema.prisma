@@ -31,6 +31,7 @@ model User {
   enrollments   Enrollment[]
   progress      Progress[]
   notifications Notification[]
+  userSessions  UserSession[]
 
   @@map("users")
 }
@@ -245,4 +246,25 @@ enum NotificationType {
   NEW_SESSION
   ENROLLMENT
   SYSTEM
+}
+
+// ============================================
+// USER SESSIONS (Login Session Tracking)
+// ============================================
+model UserSession {
+  id         String   @id @default(uuid())
+  userId     String   @map("user_id")
+  token      String   @unique
+  deviceInfo String?  @map("device_info")
+  ipAddress  String?  @map("ip_address")
+  createdAt  DateTime @default(now()) @map("created_at")
+  lastActive DateTime @default(now()) @map("last_active")
+  expiresAt  DateTime @map("expires_at")
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+  @@map("user_sessions")
 }

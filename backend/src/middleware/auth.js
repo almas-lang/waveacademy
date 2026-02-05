@@ -19,7 +19,30 @@ const authenticate = async (req, res, next) => {
     
     try {
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      
+
+      // Check if session exists and is valid
+      const session = await req.prisma.userSession.findUnique({
+        where: { token }
+      });
+
+      if (!session || session.expiresAt < new Date()) {
+        // Session expired or was revoked
+        if (session) {
+          // Clean up expired session
+          await req.prisma.userSession.delete({ where: { id: session.id } }).catch(() => {});
+        }
+        return res.status(401).json({
+          success: false,
+          error: { code: 'SESSION_EXPIRED', message: 'Session expired. Please login again.' }
+        });
+      }
+
+      // Update last active timestamp (don't await to not slow down requests)
+      req.prisma.userSession.update({
+        where: { id: session.id },
+        data: { lastActive: new Date() }
+      }).catch(() => {});
+
       // Get fresh user data
       const user = await req.prisma.user.findUnique({
         where: { id: decoded.userId },
@@ -47,6 +70,7 @@ const authenticate = async (req, res, next) => {
       }
 
       req.user = user;
+      req.sessionId = session.id;
       next();
     } catch (jwtError) {
       return res.status(401).json({

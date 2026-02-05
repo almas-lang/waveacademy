@@ -416,4 +416,58 @@ router.post('/:id/unenroll', async (req, res, next) => {
   }
 });
 
+/**
+ * GET /admin/learners/:id/sessions
+ * Get active sessions for a learner
+ */
+router.get('/:id/sessions', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    const sessions = await req.prisma.userSession.findMany({
+      where: {
+        userId: id,
+        expiresAt: { gt: new Date() }
+      },
+      select: {
+        id: true,
+        deviceInfo: true,
+        ipAddress: true,
+        createdAt: true,
+        lastActive: true
+      },
+      orderBy: { lastActive: 'desc' }
+    });
+
+    res.json({
+      success: true,
+      data: { sessions }
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * POST /admin/learners/:id/logout-all
+ * Force logout learner from all devices
+ */
+router.post('/:id/logout-all', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    const result = await req.prisma.userSession.deleteMany({
+      where: { userId: id }
+    });
+
+    res.json({
+      success: true,
+      data: { sessionsRemoved: result.count },
+      message: `Logged out from ${result.count} device(s)`
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 module.exports = router;

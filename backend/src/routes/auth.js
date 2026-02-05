@@ -58,12 +58,42 @@ router.post('/login', async (req, res, next) => {
       });
     }
 
+    // Check active sessions (max 2 devices)
+    const activeSessions = await req.prisma.userSession.count({
+      where: {
+        userId: user.id,
+        expiresAt: { gt: new Date() }
+      }
+    });
+
+    if (activeSessions >= 2) {
+      return res.status(403).json({
+        success: false,
+        error: {
+          code: 'MAX_SESSIONS_REACHED',
+          message: 'You are already logged in on 2 devices. Please logout from one device first.'
+        }
+      });
+    }
+
     // Generate token
     const token = jwt.sign(
       { userId: user.id, role: user.role },
       process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
+
+    // Create session record
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+    await req.prisma.userSession.create({
+      data: {
+        userId: user.id,
+        token,
+        deviceInfo: req.headers['user-agent'] || null,
+        ipAddress: req.ip || req.headers['x-forwarded-for'] || null,
+        expiresAt
+      }
+    });
 
     res.json({
       success: true,
@@ -258,13 +288,27 @@ router.post('/reset-password', async (req, res, next) => {
 
 /**
  * POST /auth/logout
- * Logout (client-side token removal, server just confirms)
+ * Logout - removes server-side session
  */
-router.post('/logout', (req, res) => {
-  res.json({
-    success: true,
-    message: 'Logged out successfully'
-  });
+router.post('/logout', async (req, res, next) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.split(' ')[1];
+
+      // Delete session from database
+      await req.prisma.userSession.delete({
+        where: { token }
+      }).catch(() => {}); // Ignore if session not found
+    }
+
+    res.json({
+      success: true,
+      message: 'Logged out successfully'
+    });
+  } catch (error) {
+    next(error);
+  }
 });
 
 module.exports = router;
