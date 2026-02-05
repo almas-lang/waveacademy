@@ -20,7 +20,8 @@ export interface Learner {
   createdAt: string;
 }
 
-export interface LearnerDetail extends Learner {
+export interface LearnerDetail {
+  learner: Learner;
   programProgress: ProgramProgress[];
   recentProgress: RecentProgress[];
 }
