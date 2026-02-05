@@ -1,0 +1,365 @@
+import axios from 'axios';
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+
+// Create axios instance
+export const api = axios.create({
+  baseURL: API_URL,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+// Request interceptor to add auth token
+api.interceptors.request.use((config) => {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+// Response interceptor to handle errors
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    // Only handle 401 Unauthorized errors for authentication issues
+    if (error.response?.status === 401) {
+      // Only redirect if we're not already on auth pages
+      if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/auth')) {
+        // Check if this is a token-related error (not a database or other server error)
+        const errorMessage = (error.response?.data?.error?.message || '').toLowerCase();
+        const errorCode = error.response?.data?.error?.code || '';
+
+        // Only logout for explicit authentication failures
+        const isAuthError =
+          errorMessage.includes('expired') ||
+          errorMessage.includes('invalid token') ||
+          errorMessage.includes('no token') ||
+          errorMessage.includes('jwt') ||
+          errorMessage.includes('unauthorized') ||
+          errorCode === 'UNAUTHORIZED' ||
+          errorCode === 'TOKEN_EXPIRED';
+
+        if (isAuthError) {
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          localStorage.removeItem('auth-storage');
+          window.location.href = '/auth/login';
+        }
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
+// ==========================================
+// AUTH API
+// ==========================================
+
+export const authApi = {
+  login: async (email: string, password: string) => {
+    const response = await api.post('/auth/login', { email, password });
+    return response.data;
+  },
+
+  setupPassword: async (token: string, password: string, confirmPassword: string) => {
+    const response = await api.post('/auth/setup-password', { token, password, confirmPassword });
+    return response.data;
+  },
+
+  forgotPassword: async (email: string) => {
+    const response = await api.post('/auth/forgot-password', { email });
+    return response.data;
+  },
+
+  resetPassword: async (token: string, password: string, confirmPassword: string) => {
+    const response = await api.post('/auth/reset-password', { token, password, confirmPassword });
+    return response.data;
+  },
+
+  logout: async () => {
+    const response = await api.post('/auth/logout');
+    return response.data;
+  },
+};
+
+// ==========================================
+// ADMIN API
+// ==========================================
+
+export const adminApi = {
+  // Dashboard
+  getDashboard: async () => {
+    const response = await api.get('/admin/programs');
+    return response.data;
+  },
+
+  // Programs
+  getPrograms: async (params?: { page?: number; limit?: number; all?: boolean }) => {
+    const response = await api.get('/admin/programs', { params });
+    return response.data;
+  },
+
+  getProgram: async (id: string) => {
+    const response = await api.get(`/admin/programs/${id}`);
+    return response.data;
+  },
+
+  createProgram: async (data: { name: string; description?: string; thumbnailUrl?: string }) => {
+    const response = await api.post('/admin/programs', data);
+    return response.data;
+  },
+
+  updateProgram: async (id: string, data: { name?: string; description?: string; thumbnailUrl?: string }) => {
+    const response = await api.put(`/admin/programs/${id}`, data);
+    return response.data;
+  },
+
+  deleteProgram: async (id: string) => {
+    const response = await api.delete(`/admin/programs/${id}`);
+    return response.data;
+  },
+
+  togglePublish: async (id: string, isPublished: boolean) => {
+    const response = await api.post(`/admin/programs/${id}/publish`, { isPublished });
+    return response.data;
+  },
+
+  // Topics
+  createTopic: async (data: { programId: string; name: string; orderIndex?: number }) => {
+    const response = await api.post('/admin/programs/topics', data);
+    return response.data;
+  },
+
+  updateTopic: async (id: string, data: { name?: string; orderIndex?: number }) => {
+    const response = await api.put(`/admin/programs/topics/${id}`, data);
+    return response.data;
+  },
+
+  deleteTopic: async (id: string) => {
+    const response = await api.delete(`/admin/programs/topics/${id}`);
+    return response.data;
+  },
+
+  // Subtopics
+  createSubtopic: async (data: { topicId: string; name: string; orderIndex?: number }) => {
+    const response = await api.post('/admin/programs/subtopics', data);
+    return response.data;
+  },
+
+  // Lessons
+  createLesson: async (data: {
+    programId: string;
+    topicId?: string;
+    subtopicId?: string;
+    title: string;
+    type: 'VIDEO' | 'PDF' | 'TEXT';
+    contentUrl?: string;
+    contentText?: string;
+    thumbnailUrl?: string;
+    instructorNotes?: string;
+    durationSeconds?: number;
+    orderIndex?: number;
+  }) => {
+    const response = await api.post('/admin/programs/lessons', data);
+    return response.data;
+  },
+
+  updateLesson: async (id: string, data: any) => {
+    const response = await api.put(`/admin/programs/lessons/${id}`, data);
+    return response.data;
+  },
+
+  deleteLesson: async (id: string) => {
+    const response = await api.delete(`/admin/programs/lessons/${id}`);
+    return response.data;
+  },
+
+  // Reorder content
+  reorderContent: async (programId: string, data: {
+    items: Array<{
+      id: string;
+      type: 'topic' | 'subtopic' | 'lesson';
+      orderIndex: number;
+      parentId?: string | null;
+      parentType?: 'program' | 'topic' | 'subtopic' | null;
+    }>;
+  }) => {
+    const response = await api.put(`/admin/programs/${programId}/reorder`, data);
+    return response.data;
+  },
+
+  // Update subtopic
+  updateSubtopic: async (id: string, data: { name?: string; orderIndex?: number; topicId?: string }) => {
+    const response = await api.put(`/admin/programs/subtopics/${id}`, data);
+    return response.data;
+  },
+
+  deleteSubtopic: async (id: string) => {
+    const response = await api.delete(`/admin/programs/subtopics/${id}`);
+    return response.data;
+  },
+
+  // Learners
+  getLearners: async (params?: { status?: string; programId?: string; search?: string; page?: number }) => {
+    const response = await api.get('/admin/learners', { params });
+    return response.data;
+  },
+
+  getLearner: async (id: string) => {
+    const response = await api.get(`/admin/learners/${id}`);
+    return response.data;
+  },
+
+  createLearner: async (data: {
+    email: string;
+    name: string;
+    mobile?: string;
+    registrationNumber?: string;
+    programIds?: string[];
+  }) => {
+    const response = await api.post('/admin/learners', data);
+    return response.data;
+  },
+
+  updateLearnerStatus: async (id: string, status: 'ACTIVE' | 'INACTIVE') => {
+    const response = await api.put(`/admin/learners/${id}/status`, { status });
+    return response.data;
+  },
+
+  resetLearnerPassword: async (id: string) => {
+    const response = await api.post(`/admin/learners/${id}/reset-password`);
+    return response.data;
+  },
+
+  updateLearner: async (id: string, data: { name?: string; mobile?: string; registrationNumber?: string }) => {
+    const response = await api.put(`/admin/learners/${id}`, data);
+    return response.data;
+  },
+
+  enrollLearner: async (learnerId: string, programId: string) => {
+    const response = await api.post(`/admin/learners/${learnerId}/enroll`, { programId });
+    return response.data;
+  },
+
+  unenrollLearner: async (learnerId: string, programId: string) => {
+    const response = await api.post(`/admin/learners/${learnerId}/unenroll`, { programId });
+    return response.data;
+  },
+
+  getProgramLearners: async (programId: string) => {
+    const response = await api.get(`/admin/programs/${programId}/learners`);
+    return response.data;
+  },
+
+  // Sessions
+  getSessions: async (params?: { from?: string; to?: string; programId?: string }) => {
+    const response = await api.get('/admin/sessions', { params });
+    return response.data;
+  },
+
+  getSession: async (id: string) => {
+    const response = await api.get(`/admin/sessions/${id}`);
+    return response.data;
+  },
+
+  getTodaySessions: async () => {
+    const response = await api.get('/admin/sessions/dashboard/today');
+    return response.data;
+  },
+
+  createSession: async (data: {
+    name: string;
+    description?: string;
+    startTime: string;
+    endTime?: string;
+    meetLink?: string;
+    isRecurring?: boolean;
+    recurrenceRule?: string;
+    programIds?: string[];
+  }) => {
+    const response = await api.post('/admin/sessions', data);
+    return response.data;
+  },
+
+  updateSession: async (id: string, data: any) => {
+    const response = await api.put(`/admin/sessions/${id}`, data);
+    return response.data;
+  },
+
+  deleteSession: async (id: string) => {
+    const response = await api.delete(`/admin/sessions/${id}`);
+    return response.data;
+  },
+
+  // Upload
+  uploadThumbnail: async (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await api.post('/admin/upload/thumbnail', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  },
+
+  uploadPdf: async (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await api.post('/admin/upload/pdf', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  },
+
+  getVideoUploadUrl: async (title: string) => {
+    const response = await api.get('/admin/upload/video-url', { params: { title } });
+    return response.data;
+  },
+};
+
+// ==========================================
+// LEARNER API
+// ==========================================
+
+export const learnerApi = {
+  getHome: async () => {
+    const response = await api.get('/learner/home');
+    return response.data;
+  },
+
+  getProgram: async (id: string) => {
+    const response = await api.get(`/learner/programs/${id}`);
+    return response.data;
+  },
+
+  getLesson: async (id: string) => {
+    const response = await api.get(`/learner/lessons/${id}`);
+    return response.data;
+  },
+
+  updateProgress: async (lessonId: string, watchPositionSeconds: number) => {
+    const response = await api.post(`/learner/lessons/${lessonId}/progress`, { watchPositionSeconds });
+    return response.data;
+  },
+
+  completeLesson: async (lessonId: string) => {
+    const response = await api.post(`/learner/lessons/${lessonId}/complete`);
+    return response.data;
+  },
+
+  getSessions: async () => {
+    const response = await api.get('/learner/sessions');
+    return response.data;
+  },
+
+  getSessionsCalendar: async (month: number, year: number) => {
+    const response = await api.get('/learner/sessions/calendar', { params: { month, year } });
+    return response.data;
+  },
+
+  getProfile: async () => {
+    const response = await api.get('/learner/profile');
+    return response.data;
+  },
+};
