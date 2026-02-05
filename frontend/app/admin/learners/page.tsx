@@ -6,7 +6,7 @@ import { AdminHeader } from '@/components/admin';
 import LearnerModal from '@/components/admin/LearnerModal';
 import { Button, Badge, Table, PageLoading, Pagination, getStatusVariant, formatStatus, DropdownMenu, DropdownItem, DropdownDivider } from '@/components/ui';
 import { useLearners, usePrograms, useUpdateLearnerStatus, useResetLearnerPassword } from '@/hooks';
-import { Learner, LearnerFilters } from '@/types/admin';
+import { Learner, LearnerFilters, UserStatus } from '@/types/admin';
 import { format } from 'date-fns';
 
 export default function LearnersPage() {
@@ -31,7 +31,7 @@ export default function LearnersPage() {
   const handleStatusFilter = (status: string) => {
     setFilters(prev => ({
       ...prev,
-      status: status || undefined,
+      status: (status as UserStatus) || undefined,
       page: 1,
     }));
   };
