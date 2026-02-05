@@ -49,7 +49,7 @@ export default function LearnerProgramsPage() {
                       className="w-full h-44 object-cover"
                     />
                   ) : (
-                    <div className="w-full h-44 bg-gradient-to-br from-slate-800 to-slate-900 flex items-center justify-center">
+                    <div className="w-full h-44 bg-gradient-to-br from-primary-600 to-primary-700 flex items-center justify-center">
                       <BookOpen className="w-16 h-16 text-white/20" />
                     </div>
                   )}
@@ -113,7 +113,7 @@ export default function LearnerProgramsPage() {
                         className="h-full rounded-full transition-all duration-500 ease-out"
                         style={{
                           width: `${program.progressPercentage}%`,
-                          backgroundColor: program.progressPercentage === 100 ? '#10b981' : '#FF0023',
+                          backgroundColor: program.progressPercentage === 100 ? '#10b981' : '#FF6B57',
                         }}
                       />
                     </div>

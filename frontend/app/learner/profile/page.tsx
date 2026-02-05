@@ -49,11 +49,11 @@ export default function LearnerProfilePage() {
       <div className="flex-1 p-6 lg:p-8">
         <div className="max-w-3xl mx-auto">
           {/* Profile Header Card */}
-          <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-2xl p-6 lg:p-8 mb-6 relative overflow-hidden">
+          <div className="bg-gradient-to-br from-primary-600 via-primary-500 to-primary-700 rounded-2xl p-6 lg:p-8 mb-6 relative overflow-hidden">
             {/* Background pattern */}
-            <div className="absolute inset-0 opacity-10">
+            <div className="absolute inset-0 opacity-20">
               <div className="absolute top-0 right-0 w-48 h-48 bg-accent-500 rounded-full blur-3xl" />
-              <div className="absolute bottom-0 left-0 w-32 h-32 bg-slate-500 rounded-full blur-2xl" />
+              <div className="absolute bottom-0 left-0 w-32 h-32 bg-primary-300 rounded-full blur-2xl" />
             </div>
 
             <div className="relative flex flex-col sm:flex-row items-center gap-6">
@@ -68,7 +68,7 @@ export default function LearnerProfilePage() {
                 <h2 className="text-2xl font-bold text-white mb-1">
                   {profile?.name || 'Learner'}
                 </h2>
-                <p className="text-slate-400 text-sm mb-3">{profile?.email}</p>
+                <p className="text-primary-100 text-sm mb-3">{profile?.email}</p>
                 <div className="flex items-center justify-center sm:justify-start gap-2">
                   <Badge variant="info" size="sm">
                     <Award className="w-3 h-3 mr-1" />
@@ -178,7 +178,7 @@ export default function LearnerProfilePage() {
                       className="h-full rounded-full transition-all duration-500 ease-out"
                       style={{
                         width: `${overallProgress}%`,
-                        backgroundColor: overallProgress === 100 ? '#10b981' : '#FF0023',
+                        backgroundColor: overallProgress === 100 ? '#10b981' : '#FF6B57',
                       }}
                     />
                   </div>

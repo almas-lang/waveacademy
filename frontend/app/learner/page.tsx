@@ -39,23 +39,23 @@ export default function LearnerHomePage() {
 
       <div className="flex-1 p-6 lg:p-8">
         {/* Welcome Banner */}
-        <div className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-2xl p-6 lg:p-8 mb-8">
+        <div className="relative overflow-hidden bg-gradient-to-br from-primary-600 via-primary-500 to-primary-700 rounded-2xl p-6 lg:p-8 mb-8">
           {/* Background pattern */}
-          <div className="absolute inset-0 opacity-10">
+          <div className="absolute inset-0 opacity-20">
             <div className="absolute top-0 right-0 w-64 h-64 bg-accent-500 rounded-full blur-3xl" />
-            <div className="absolute bottom-0 left-0 w-48 h-48 bg-slate-500 rounded-full blur-3xl" />
+            <div className="absolute bottom-0 left-0 w-48 h-48 bg-primary-300 rounded-full blur-3xl" />
           </div>
 
           <div className="relative flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
             <div>
               <div className="flex items-center gap-2 mb-2">
                 <Sparkles className="w-5 h-5 text-accent-400" />
-                <span className="text-accent-400 text-sm font-medium">Welcome back</span>
+                <span className="text-accent-300 text-sm font-medium">Welcome back</span>
               </div>
               <h2 className="text-2xl lg:text-3xl font-bold text-white mb-2">
                 Hello, {welcomeName}!
               </h2>
-              <p className="text-slate-300 text-sm lg:text-base max-w-md">
+              <p className="text-primary-100 text-sm lg:text-base max-w-md">
                 Continue your learning journey. You're making great progress!
               </p>
             </div>
@@ -63,14 +63,14 @@ export default function LearnerHomePage() {
             {/* Quick Stats */}
             <div className="flex gap-4 lg:gap-6">
               <div className="bg-white/10 backdrop-blur-sm rounded-xl px-5 py-4 border border-white/10">
-                <p className="text-slate-400 text-xs font-medium mb-1">Programs</p>
+                <p className="text-primary-200 text-xs font-medium mb-1">Programs</p>
                 <p className="text-2xl font-bold text-white">{data?.enrolledPrograms?.length || 0}</p>
               </div>
               <div className="bg-white/10 backdrop-blur-sm rounded-xl px-5 py-4 border border-white/10">
-                <p className="text-slate-400 text-xs font-medium mb-1">Avg. Progress</p>
+                <p className="text-primary-200 text-xs font-medium mb-1">Avg. Progress</p>
                 <div className="flex items-center gap-2">
                   <p className="text-2xl font-bold text-white">{totalProgress}%</p>
-                  <TrendingUp className="w-4 h-4 text-emerald-400" />
+                  <TrendingUp className="w-4 h-4 text-accent-300" />
                 </div>
               </div>
             </div>
@@ -142,7 +142,7 @@ export default function LearnerHomePage() {
                           className="h-full rounded-full transition-all duration-500 ease-out"
                           style={{
                             width: `${program.progressPercentage}%`,
-                            backgroundColor: program.progressPercentage === 100 ? '#10b981' : '#FF0023',
+                            backgroundColor: program.progressPercentage === 100 ? '#10b981' : '#FF6B57',
                           }}
                         />
                       </div>
