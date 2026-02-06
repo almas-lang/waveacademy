@@ -7,6 +7,46 @@ const crypto = require('crypto');
 const { sendPasswordSetupEmail, sendPasswordResetEmail } = require('../utils/email');
 const { authenticate } = require('../middleware/auth');
 
+const COOKIE_MAX_AGE = 7 * 24 * 60 * 60 * 1000; // 7 days
+
+/**
+ * Set auth token as httpOnly cookie
+ */
+function setTokenCookie(res, token) {
+  res.cookie('token', token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+    maxAge: COOKIE_MAX_AGE,
+    path: '/',
+  });
+}
+
+/**
+ * Clear auth cookie
+ */
+function clearTokenCookie(res) {
+  res.clearCookie('token', {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+    path: '/',
+  });
+}
+
+/**
+ * Validate password strength
+ * Returns error message or null if valid
+ */
+function validatePassword(password) {
+  if (password.length < 8) return 'Password must be at least 8 characters';
+  if (!/[A-Z]/.test(password)) return 'Password must contain at least one uppercase letter';
+  if (!/[a-z]/.test(password)) return 'Password must contain at least one lowercase letter';
+  if (!/[0-9]/.test(password)) return 'Password must contain at least one number';
+  if (!/[^A-Za-z0-9]/.test(password)) return 'Password must contain at least one special character';
+  return null;
+}
+
 /**
  * POST /auth/login
  * Login for admin and learners
@@ -96,10 +136,11 @@ router.post('/login', async (req, res, next) => {
       }
     });
 
+    setTokenCookie(res, token);
+
     res.json({
       success: true,
       data: {
-        token,
         user: {
           id: user.id,
           email: user.email,
@@ -180,10 +221,11 @@ router.post('/login-force', async (req, res, next) => {
       }
     });
 
+    setTokenCookie(res, token);
+
     res.json({
       success: true,
       data: {
-        token,
         user: {
           id: user.id,
           email: user.email,
@@ -219,10 +261,11 @@ router.post('/setup-password', async (req, res, next) => {
       });
     }
 
-    if (password.length < 8) {
+    const passwordError = validatePassword(password);
+    if (passwordError) {
       return res.status(400).json({
         success: false,
-        error: { code: 'VALIDATION_ERROR', message: 'Password must be at least 8 characters' }
+        error: { code: 'VALIDATION_ERROR', message: passwordError }
       });
     }
 
@@ -278,15 +321,18 @@ router.post('/forgot-password', async (req, res, next) => {
       });
     }
 
+    // Always return same response to prevent email enumeration
+    const genericResponse = {
+      success: true,
+      message: 'If an account with this email exists, a password reset link has been sent.'
+    };
+
     const user = await req.prisma.user.findUnique({
       where: { email: email.toLowerCase() }
     });
 
     if (!user) {
-      return res.status(404).json({
-        success: false,
-        error: { code: 'USER_NOT_FOUND', message: 'No account found with this email address' }
-      });
+      return res.json(genericResponse);
     }
 
     // Generate reset token
@@ -304,10 +350,7 @@ router.post('/forgot-password', async (req, res, next) => {
     // Send email
     await sendPasswordResetEmail(user.email, user.name, resetToken);
 
-    res.json({
-      success: true,
-      message: 'Password reset link has been sent to your email'
-    });
+    res.json(genericResponse);
   } catch (error) {
     next(error);
   }
@@ -332,6 +375,14 @@ router.post('/reset-password', async (req, res, next) => {
       return res.status(400).json({
         success: false,
         error: { code: 'VALIDATION_ERROR', message: 'Passwords do not match' }
+      });
+    }
+
+    const passwordError = validatePassword(password);
+    if (passwordError) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'VALIDATION_ERROR', message: passwordError }
       });
     }
 
@@ -425,10 +476,11 @@ router.post('/admin/setup', async (req, res, next) => {
       });
     }
 
-    if (password.length < 8) {
+    const passwordError = validatePassword(password);
+    if (passwordError) {
       return res.status(400).json({
         success: false,
-        error: { code: 'VALIDATION_ERROR', message: 'Password must be at least 8 characters' }
+        error: { code: 'VALIDATION_ERROR', message: passwordError }
       });
     }
 
@@ -474,10 +526,11 @@ router.post('/admin/setup', async (req, res, next) => {
       }
     });
 
+    setTokenCookie(res, token);
+
     res.status(201).json({
       success: true,
       data: {
-        token,
         user: {
           id: admin.id,
           email: admin.email,
@@ -498,15 +551,17 @@ router.post('/admin/setup', async (req, res, next) => {
  */
 router.post('/logout', async (req, res, next) => {
   try {
-    const authHeader = req.headers.authorization;
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      const token = authHeader.split(' ')[1];
+    // Read token from cookie or Authorization header
+    const token = req.cookies?.token ||
+      (req.headers.authorization?.startsWith('Bearer ') ? req.headers.authorization.split(' ')[1] : null);
 
-      // Delete session from database
+    if (token) {
       await req.prisma.userSession.delete({
         where: { token }
-      }).catch(() => {}); // Ignore if session not found
+      }).catch(() => {});
     }
+
+    clearTokenCookie(res);
 
     res.json({
       success: true,
@@ -540,10 +595,11 @@ router.post('/change-password', authenticate, async (req, res, next) => {
       });
     }
 
-    if (newPassword.length < 8) {
+    const passwordError = validatePassword(newPassword);
+    if (passwordError) {
       return res.status(400).json({
         success: false,
-        error: { code: 'VALIDATION_ERROR', message: 'New password must be at least 8 characters' }
+        error: { code: 'VALIDATION_ERROR', message: passwordError }
       });
     }
 

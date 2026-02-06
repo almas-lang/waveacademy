@@ -83,7 +83,7 @@ export default function AdminSetupPage() {
       );
 
       if (response.success) {
-        login(response.data.token, response.data.user);
+        login(response.data.user);
         toast.success('Admin account created successfully!');
         router.push('/admin');
       }

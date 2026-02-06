@@ -6,16 +6,16 @@ const jwt = require('jsonwebtoken');
  */
 const authenticate = async (req, res, next) => {
   try {
-    const authHeader = req.headers.authorization;
-    
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    // Read token from httpOnly cookie first, then Authorization header as fallback
+    const token = req.cookies?.token ||
+      (req.headers.authorization?.startsWith('Bearer ') ? req.headers.authorization.split(' ')[1] : null);
+
+    if (!token) {
       return res.status(401).json({
         success: false,
         error: { code: 'UNAUTHORIZED', message: 'No token provided' }
       });
     }
-
-    const token = authHeader.split(' ')[1];
     
     try {
       const decoded = jwt.verify(token, process.env.JWT_SECRET);

@@ -27,14 +27,18 @@ router.get('/home', async (req, res, next) => {
       }
     });
 
-    // Get progress for all lessons
+    // Get progress only for enrolled programs
+    const enrolledProgramIds = enrollments.map(e => e.programId);
     const progress = await req.prisma.progress.findMany({
-      where: { userId },
+      where: {
+        userId,
+        lesson: { programId: { in: enrolledProgramIds } }
+      },
       include: {
         lesson: {
-          select: { 
-            id: true, 
-            title: true, 
+          select: {
+            id: true,
+            title: true,
             programId: true,
             durationSeconds: true
           }

@@ -167,6 +167,7 @@ model Enrollment {
   program Program @relation(fields: [programId], references: [id], onDelete: Cascade)
 
   @@unique([userId, programId])
+  @@index([userId])
   @@index([programId])
   @@map("enrollments")
 }
@@ -185,6 +186,7 @@ model Progress {
   lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
 
   @@unique([userId, lessonId])
+  @@index([userId])
   @@map("progress")
 }
 
@@ -273,5 +275,6 @@ model UserSession {
 
   @@index([userId])
   @@index([token])
+  @@index([expiresAt])
   @@map("user_sessions")
 }

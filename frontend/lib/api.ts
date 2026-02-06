@@ -2,48 +2,26 @@ import axios from 'axios';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
-// Create axios instance
+// Create axios instance — cookies are sent automatically via withCredentials
 export const api = axios.create({
   baseURL: API_URL,
   headers: {
     'Content-Type': 'application/json',
   },
+  withCredentials: true,
 });
 
-// Request interceptor to add auth token
-api.interceptors.request.use((config) => {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
-
-// Response interceptor to handle errors
+// Response interceptor to handle auth errors
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    // Only handle 401 Unauthorized errors for authentication issues
     if (error.response?.status === 401) {
-      // Only redirect if we're not already on auth pages
       if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/auth')) {
-        // Check if this is a token-related error (not a database or other server error)
-        const errorMessage = (error.response?.data?.error?.message || '').toLowerCase();
         const errorCode = error.response?.data?.error?.code || '';
-
-        // Only logout for explicit authentication failures
-        const isAuthError =
-          errorMessage.includes('expired') ||
-          errorMessage.includes('invalid token') ||
-          errorMessage.includes('no token') ||
-          errorMessage.includes('jwt') ||
-          errorMessage.includes('unauthorized') ||
-          errorCode === 'UNAUTHORIZED' ||
-          errorCode === 'TOKEN_EXPIRED';
+        const isAuthError = errorCode === 'UNAUTHORIZED' || errorCode === 'SESSION_EXPIRED';
 
         if (isAuthError) {
-          localStorage.removeItem('token');
-          localStorage.removeItem('user');
+          // Clear local user state and redirect — cookie is cleared server-side on logout
           localStorage.removeItem('auth-storage');
           window.location.href = '/auth/login';
         }

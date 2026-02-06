@@ -9,6 +9,37 @@ const { authenticate, requireAdmin } = require('../../middleware/auth');
 router.use(authenticate);
 router.use(requireAdmin);
 
+// Allowed MIME types
+const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+const ALLOWED_ATTACHMENT_TYPES = [
+  'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/vnd.ms-powerpoint',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  'application/zip',
+  'text/plain',
+];
+
+// Map MIME types to safe extensions
+const MIME_TO_EXT = {
+  'image/jpeg': 'jpg',
+  'image/png': 'png',
+  'image/webp': 'webp',
+  'image/gif': 'gif',
+  'application/pdf': 'pdf',
+  'application/msword': 'doc',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',
+  'application/vnd.ms-excel': 'xls',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'xlsx',
+  'application/vnd.ms-powerpoint': 'ppt',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation': 'pptx',
+  'application/zip': 'zip',
+  'text/plain': 'txt',
+};
+
 // Configure multer for memory storage
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -40,7 +71,14 @@ router.post('/thumbnail', upload.single('file'), async (req, res, next) => {
       });
     }
 
-    const fileExtension = req.file.originalname.split('.').pop();
+    if (!ALLOWED_IMAGE_TYPES.includes(req.file.mimetype)) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'VALIDATION_ERROR', message: 'File must be an image (JPEG, PNG, WebP, or GIF)' }
+      });
+    }
+
+    const fileExtension = MIME_TO_EXT[req.file.mimetype] || 'bin';
     const fileName = `thumbnails/${uuidv4()}.${fileExtension}`;
 
     await r2Client.send(new PutObjectCommand({
@@ -114,7 +152,14 @@ router.post('/attachment', upload.single('file'), async (req, res, next) => {
       });
     }
 
-    const fileExtension = req.file.originalname.split('.').pop();
+    if (!ALLOWED_ATTACHMENT_TYPES.includes(req.file.mimetype)) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'VALIDATION_ERROR', message: 'File type not allowed. Accepted: PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX, ZIP, TXT' }
+      });
+    }
+
+    const fileExtension = MIME_TO_EXT[req.file.mimetype] || 'bin';
     const fileName = `attachments/${uuidv4()}.${fileExtension}`;
 
     await r2Client.send(new PutObjectCommand({

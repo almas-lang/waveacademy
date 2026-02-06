@@ -60,7 +60,7 @@ export default function LoginPage() {
       const response = await authApi.login(fields.email.value, fields.password.value);
 
       if (response.success) {
-        login(response.data.token, response.data.user);
+        login(response.data.user);
         toast.success('Welcome back!');
 
         // Redirect based on role
@@ -94,7 +94,7 @@ export default function LoginPage() {
       const response = await authApi.loginForce(fields.email.value, fields.password.value);
 
       if (response.success) {
-        login(response.data.token, response.data.user);
+        login(response.data.user);
         toast.success('Logged out from other devices. Welcome back!');
         setShowMaxSessionsModal(false);
 
