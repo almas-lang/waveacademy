@@ -19,7 +19,14 @@ const notificationRoutes = require('./routes/notifications');
 
 // Initialize
 const app = express();
-const prisma = new PrismaClient();
+const prisma = new PrismaClient({
+  datasources: {
+    db: {
+      url: process.env.DATABASE_URL,
+    },
+  },
+  log: process.env.NODE_ENV === 'development' ? ['warn', 'error'] : ['error'],
+});
 const PORT = process.env.PORT || 3001;
 
 // Rate limiters

@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { BookOpen, Users, Calendar, Clock, Video, ArrowRight, Plus } from 'lucide-react';
 import { AdminHeader, StatsCard } from '@/components/admin';
 import { Button, Badge, PageLoading } from '@/components/ui';
@@ -169,9 +170,11 @@ export default function AdminDashboard() {
                     >
                       <div className="flex items-center gap-3.5">
                         {program.thumbnailUrl ? (
-                          <img
+                          <Image
                             src={program.thumbnailUrl}
                             alt={program.name}
+                            width={40}
+                            height={40}
                             className="w-10 h-10 rounded-lg object-cover"
                           />
                         ) : (

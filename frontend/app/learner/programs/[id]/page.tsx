@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import {
   ArrowLeft,
   BookOpen,
@@ -254,9 +255,11 @@ export default function LearnerProgramDetailPage() {
           <div className="relative flex flex-col lg:flex-row gap-6">
             {/* Thumbnail */}
             {program.thumbnailUrl ? (
-              <img
+              <Image
                 src={program.thumbnailUrl}
                 alt={program.name}
+                width={288}
+                height={176}
                 className="w-full lg:w-72 h-44 object-cover rounded-xl shadow-lg"
               />
             ) : (

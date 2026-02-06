@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { BookOpen, Calendar, Clock, Play, ArrowRight, CheckCircle, Sparkles, TrendingUp } from 'lucide-react';
 import { LearnerHeader } from '@/components/learner';
 import { Button, Badge, PageLoading } from '@/components/ui';
@@ -102,9 +103,11 @@ export default function LearnerHomePage() {
                   {/* Thumbnail */}
                   <div className="relative">
                     {program.thumbnailUrl ? (
-                      <img
+                      <Image
                         src={program.thumbnailUrl}
                         alt={program.name}
+                        width={400}
+                        height={144}
                         className="w-full h-36 object-cover"
                       />
                     ) : (

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Image from 'next/image';
 import { Plus, BookOpen, Eye, Edit, Trash2, Globe, Lock } from 'lucide-react';
 import { AdminHeader } from '@/components/admin';
 import ProgramModal from '@/components/admin/ProgramModal';
@@ -52,9 +53,11 @@ export default function ProgramsPage() {
       render: (program: Program) => (
         <div className="flex items-center gap-3.5">
           {program.thumbnailUrl ? (
-            <img
+            <Image
               src={program.thumbnailUrl}
               alt={program.name}
+              width={44}
+              height={44}
               className="w-11 h-11 rounded-lg object-cover ring-1 ring-slate-200"
             />
           ) : (

@@ -3,6 +3,7 @@
 import { useState, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import {
   ArrowLeft,
   Edit,
@@ -155,9 +156,11 @@ export default function ProgramDetailPage() {
           <div className="flex flex-col lg:flex-row lg:items-start gap-6">
             {/* Thumbnail */}
             {program.thumbnailUrl ? (
-              <img
+              <Image
                 src={program.thumbnailUrl}
                 alt={program.name}
+                width={224}
+                height={144}
                 className="w-full lg:w-56 h-36 object-cover rounded-xl ring-1 ring-slate-200"
               />
             ) : (
