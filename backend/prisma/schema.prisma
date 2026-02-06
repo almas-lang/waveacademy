@@ -83,6 +83,7 @@ model Topic {
   subtopics Subtopic[]
   lessons   Lesson[]   // Lessons directly under topic
 
+  @@index([programId])
   @@map("topics")
 }
 
@@ -97,6 +98,7 @@ model Subtopic {
   topic   Topic    @relation(fields: [topicId], references: [id], onDelete: Cascade)
   lessons Lesson[]
 
+  @@index([topicId])
   @@map("subtopics")
 }
 
@@ -124,6 +126,9 @@ model Lesson {
   attachments LessonAttachment[]
   progress    Progress[]
 
+  @@index([programId])
+  @@index([topicId])
+  @@index([subtopicId])
   @@map("lessons")
 }
 
@@ -144,6 +149,7 @@ model LessonAttachment {
   // Relations
   lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
 
+  @@index([lessonId])
   @@map("lesson_attachments")
 }
 
@@ -161,6 +167,7 @@ model Enrollment {
   program Program @relation(fields: [programId], references: [id], onDelete: Cascade)
 
   @@unique([userId, programId])
+  @@index([programId])
   @@map("enrollments")
 }
 

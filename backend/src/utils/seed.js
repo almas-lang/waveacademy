@@ -12,8 +12,18 @@ async function main() {
   console.log('🌱 Seeding database...');
 
   // Create admin user
-  const adminEmail = process.env.ADMIN_EMAIL || 'admin@xperiencewave.com';
-  const adminPassword = process.env.ADMIN_PASSWORD || 'admin123';
+  const adminEmail = process.env.ADMIN_EMAIL;
+  const adminPassword = process.env.ADMIN_PASSWORD;
+
+  if (!adminEmail || !adminPassword) {
+    console.error('❌ ADMIN_EMAIL and ADMIN_PASSWORD environment variables are required');
+    process.exit(1);
+  }
+
+  if (adminPassword.length < 8) {
+    console.error('❌ ADMIN_PASSWORD must be at least 8 characters');
+    process.exit(1);
+  }
 
   const existingAdmin = await prisma.user.findUnique({
     where: { email: adminEmail }

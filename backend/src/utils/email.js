@@ -6,6 +6,20 @@ const fromEmail = process.env.EMAIL_FROM || 'noreply@xperiencewave.com';
 const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
 
 /**
+ * Escape HTML to prevent XSS in email templates
+ */
+const escapeHtml = (str) => {
+  if (!str) return '';
+  return String(str).replace(/[&<>"']/g, (char) => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+  })[char]);
+};
+
+/**
  * Send password setup email to new learner
  */
 async function sendPasswordSetupEmail(email, name, token) {
@@ -38,7 +52,7 @@ async function sendPasswordSetupEmail(email, name, token) {
         <body>
           <div class="container">
             <h2>Welcome to XperienceWave! 🎉</h2>
-            <p>Hi ${name},</p>
+            <p>Hi ${escapeHtml(name)},</p>
             <p>You've been enrolled in a program on XperienceWave. To get started, please set up your password:</p>
             <a href="${setupUrl}" class="button">Set Up Password</a>
             <p>This link will expire in 24 hours.</p>
@@ -91,7 +105,7 @@ async function sendPasswordResetEmail(email, name, token) {
         <body>
           <div class="container">
             <h2>Reset Your Password</h2>
-            <p>Hi ${name},</p>
+            <p>Hi ${escapeHtml(name)},</p>
             <p>You requested to reset your password. Click the button below:</p>
             <a href="${resetUrl}" class="button">Reset Password</a>
             <p>This link will expire in 1 hour.</p>
@@ -119,7 +133,7 @@ async function sendSessionReminderEmail(email, name, session) {
     await resend.emails.send({
       from: fromEmail,
       to: email,
-      subject: `Reminder: ${session.name} - Starting Soon`,
+      subject: `Reminder: ${escapeHtml(session.name)} - Starting Soon`,
       html: `
         <!DOCTYPE html>
         <html>
@@ -142,10 +156,10 @@ async function sendSessionReminderEmail(email, name, session) {
         <body>
           <div class="container">
             <h2>Session Reminder 📅</h2>
-            <p>Hi ${name},</p>
+            <p>Hi ${escapeHtml(name)},</p>
             <p>Your session is starting soon:</p>
             <div class="session-details">
-              <strong>${session.name}</strong><br>
+              <strong>${escapeHtml(session.name)}</strong><br>
               Time: ${new Date(session.startTime).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })} IST
             </div>
             ${session.meetLink ? `<a href="${session.meetLink}" class="button">Join Google Meet</a>` : ''}

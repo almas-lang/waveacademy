@@ -63,6 +63,26 @@ export const authApi = {
     return response.data;
   },
 
+  loginForce: async (email: string, password: string) => {
+    const response = await api.post('/auth/login-force', { email, password });
+    return response.data;
+  },
+
+  checkAdminExists: async () => {
+    const response = await api.get('/auth/admin/check');
+    return response.data;
+  },
+
+  setupAdmin: async (email: string, password: string, confirmPassword: string, name?: string) => {
+    const response = await api.post('/auth/admin/setup', { email, password, confirmPassword, name });
+    return response.data;
+  },
+
+  changePassword: async (currentPassword: string, newPassword: string, confirmPassword: string) => {
+    const response = await api.post('/auth/change-password', { currentPassword, newPassword, confirmPassword });
+    return response.data;
+  },
+
   setupPassword: async (token: string, password: string, confirmPassword: string) => {
     const response = await api.post('/auth/setup-password', { token, password, confirmPassword });
     return response.data;

@@ -2,6 +2,7 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const rateLimit = require('express-rate-limit');
 const { PrismaClient } = require('@prisma/client');
 
 // Import routes
@@ -20,9 +21,39 @@ const app = express();
 const prisma = new PrismaClient();
 const PORT = process.env.PORT || 3001;
 
+// Rate limiters
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10, // 10 attempts per window
+  message: {
+    success: false,
+    error: {
+      code: 'TOO_MANY_REQUESTS',
+      message: 'Too many login attempts. Please try again in 15 minutes.'
+    }
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const generalLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 100, // 100 requests per minute
+  message: {
+    success: false,
+    error: {
+      code: 'TOO_MANY_REQUESTS',
+      message: 'Too many requests. Please slow down.'
+    }
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 // Middleware
 const allowedOrigins = [
   'http://localhost:3000',
+  'http://localhost:3003',
   'https://learn.xperiencewave.com',
   process.env.FRONTEND_URL
 ].filter(Boolean);
@@ -46,13 +77,16 @@ app.use((req, res, next) => {
   next();
 });
 
+// Apply general rate limiter to all routes
+app.use(generalLimiter);
+
 // Health check
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// Routes
-app.use('/auth', authRoutes);
+// Routes - Auth routes get stricter rate limiting
+app.use('/auth', authLimiter, authRoutes);
 app.use('/admin/programs', adminProgramRoutes);
 app.use('/admin/learners', adminLearnerRoutes);
 app.use('/admin/sessions', adminSessionRoutes);

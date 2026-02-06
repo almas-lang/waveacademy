@@ -31,7 +31,8 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       'inline-flex items-center justify-center font-medium rounded-lg',
       'transition-all duration-150 ease-out',
       'focus:outline-none focus:ring-2 focus:ring-offset-2',
-      'disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none'
+      'disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none',
+      'active:scale-[0.98] active:transition-transform'
     );
 
     const variants = {
@@ -39,7 +40,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         'bg-accent-500 text-white shadow-sm',
         'hover:bg-accent-600 hover:shadow-md',
         'active:bg-accent-700 active:shadow-sm',
-        'focus:ring-red-300'
+        'focus:ring-accent-300'
       ),
       secondary: clsx(
         'bg-primary-800 text-white shadow-sm',

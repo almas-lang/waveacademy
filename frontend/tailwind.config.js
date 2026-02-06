@@ -82,6 +82,10 @@ module.exports = {
         'slide-up': 'slideUp 0.3s ease-out',
         'slide-down': 'slideDown 0.3s ease-out',
         'scale-in': 'scaleIn 0.2s ease-out',
+        'shake': 'shake 0.5s ease-in-out',
+        'pulse-once': 'pulseOnce 0.3s ease-out',
+        'check-draw': 'checkDraw 0.3s ease-out forwards',
+        'error-pulse': 'errorPulse 0.4s ease-out',
       },
       keyframes: {
         fadeIn: {
@@ -99,6 +103,25 @@ module.exports = {
         scaleIn: {
           '0%': { opacity: '0', transform: 'scale(0.95)' },
           '100%': { opacity: '1', transform: 'scale(1)' },
+        },
+        shake: {
+          '0%, 100%': { transform: 'translateX(0)' },
+          '10%, 30%, 50%, 70%, 90%': { transform: 'translateX(-4px)' },
+          '20%, 40%, 60%, 80%': { transform: 'translateX(4px)' },
+        },
+        pulseOnce: {
+          '0%': { transform: 'scale(1)' },
+          '50%': { transform: 'scale(1.05)' },
+          '100%': { transform: 'scale(1)' },
+        },
+        checkDraw: {
+          '0%': { strokeDashoffset: '24' },
+          '100%': { strokeDashoffset: '0' },
+        },
+        errorPulse: {
+          '0%': { boxShadow: '0 0 0 0 rgba(239, 68, 68, 0.4)' },
+          '70%': { boxShadow: '0 0 0 6px rgba(239, 68, 68, 0)' },
+          '100%': { boxShadow: '0 0 0 0 rgba(239, 68, 68, 0)' },
         },
       },
     },

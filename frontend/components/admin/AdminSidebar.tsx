@@ -8,6 +8,7 @@ import {
   BookOpen,
   Users,
   Calendar,
+  Settings,
   X,
   ChevronsLeft,
   ChevronsRight,
@@ -24,6 +25,7 @@ const navItems = [
   { href: '/admin/programs', icon: BookOpen, label: 'Programs' },
   { href: '/admin/learners', icon: Users, label: 'Learners' },
   { href: '/admin/sessions', icon: Calendar, label: 'Sessions' },
+  { href: '/admin/settings', icon: Settings, label: 'Settings' },
 ];
 
 const COLLAPSED_KEY = 'admin-sidebar-collapsed';
@@ -104,8 +106,8 @@ export default function AdminSidebar({ isOpen, onClose }: AdminSidebarProps) {
           {!isCollapsed && (
             <button
               onClick={toggleCollapsed}
-              className="hidden lg:flex p-1.5 text-primary-100 hover:text-white hover:bg-primary-600 rounded-lg transition-colors"
-              title="Collapse sidebar"
+              aria-label="Collapse sidebar"
+              className="hidden lg:flex p-1.5 text-white hover:text-white hover:bg-primary-600 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-white/50"
             >
               <ChevronsLeft className="w-4 h-4" />
             </button>
@@ -115,7 +117,8 @@ export default function AdminSidebar({ isOpen, onClose }: AdminSidebarProps) {
           {!isCollapsed && (
             <button
               onClick={onClose}
-              className="lg:hidden p-1.5 text-primary-100 hover:text-white hover:bg-primary-600 rounded-lg transition-colors"
+              aria-label="Close sidebar"
+              className="lg:hidden p-1.5 text-white hover:text-white hover:bg-primary-600 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-white/50"
             >
               <X className="w-5 h-5" />
             </button>
@@ -127,8 +130,8 @@ export default function AdminSidebar({ isOpen, onClose }: AdminSidebarProps) {
           <div className="hidden lg:flex justify-center py-3 border-b border-primary-400/30 flex-shrink-0">
             <button
               onClick={toggleCollapsed}
-              className="p-2 text-primary-100 hover:text-white hover:bg-primary-600 rounded-lg transition-colors"
-              title="Expand sidebar"
+              aria-label="Expand sidebar"
+              className="p-2 text-white hover:text-white hover:bg-primary-600 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-white/50"
             >
               <ChevronsRight className="w-4 h-4" />
             </button>
@@ -147,16 +150,18 @@ export default function AdminSidebar({ isOpen, onClose }: AdminSidebarProps) {
                 href={item.href}
                 onClick={onClose}
                 title={isCollapsed ? item.label : undefined}
+                aria-current={active ? 'page' : undefined}
                 className={clsx(
                   'flex items-center rounded-lg',
                   'text-sm font-medium transition-all duration-150',
+                  'focus:outline-none focus:ring-2 focus:ring-white/50',
                   isCollapsed ? 'justify-center p-3' : 'gap-3 px-3 py-2.5',
                   active
                     ? 'bg-accent-500 text-white shadow-sm'
-                    : 'text-primary-100 hover:bg-primary-600 hover:text-white'
+                    : 'text-white hover:bg-primary-600 hover:text-white'
                 )}
               >
-                <Icon className={clsx('w-5 h-5 flex-shrink-0', active ? 'text-white' : 'text-primary-200')} />
+                <Icon className={clsx('w-5 h-5 flex-shrink-0', active ? 'text-white' : 'text-white/80')} />
                 {!isCollapsed && (
                   <>
                     <span>{item.label}</span>
