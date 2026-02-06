@@ -8,7 +8,6 @@ import {
   ChevronLeft,
   ChevronRight,
   CheckCircle,
-  Download,
   FileText,
   Play,
   Clock,
@@ -134,6 +133,33 @@ export default function LessonViewerPage() {
           </div>
         </div>
 
+        {/* Video Content — full width for immersive viewing */}
+        {lesson.type === 'VIDEO' && lesson.contentUrl && (
+          <div className="bg-black">
+            <div className="max-w-7xl mx-auto">
+              <div style={{ position: 'relative', paddingTop: '56.25%' }}>
+                <iframe
+                  src={progress?.watchPositionSeconds
+                    ? `${lesson.contentUrl}${lesson.contentUrl.includes('?') ? '&' : '?'}t=${progress.watchPositionSeconds}&autoplay=false&preload=true&responsive=true`
+                    : `${lesson.contentUrl}${lesson.contentUrl.includes('?') ? '&' : '?'}autoplay=false&preload=true&responsive=true`
+                  }
+                  loading="lazy"
+                  style={{
+                    border: 'none',
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    height: '100%',
+                    width: '100%',
+                  }}
+                  allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture"
+                  allowFullScreen
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Content */}
         <div className="max-w-6xl mx-auto p-6 lg:p-8">
           {/* Lesson Header */}
@@ -174,56 +200,30 @@ export default function LessonViewerPage() {
             )}
           </div>
 
-          {/* Lesson Content */}
-          <div className="bg-white rounded-xl border border-slate-200/80 shadow-soft overflow-hidden mb-6">
-            {lesson.type === 'VIDEO' && lesson.contentUrl && (
-              <div style={{ position: 'relative', paddingTop: '56.25%' }}>
-                <iframe
-                  src={progress?.watchPositionSeconds
-                    ? `${lesson.contentUrl}${lesson.contentUrl.includes('?') ? '&' : '?'}t=${progress.watchPositionSeconds}&autoplay=false&preload=true`
-                    : `${lesson.contentUrl}${lesson.contentUrl.includes('?') ? '&' : '?'}autoplay=false&preload=true`
-                  }
-                  loading="lazy"
-                  style={{
-                    border: 'none',
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    height: '100%',
-                    width: '100%',
-                  }}
-                  allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture"
-                  allowFullScreen
-                />
-              </div>
-            )}
-
-            {lesson.type === 'PDF' && lesson.contentUrl && (
+          {/* PDF / Text Content */}
+          {lesson.type === 'PDF' && lesson.contentUrl && (
+            <div className="bg-white rounded-xl border border-slate-200/80 shadow-soft overflow-hidden mb-6">
               <div className="p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-accent-50 rounded-lg flex items-center justify-center">
-                      <FileText className="w-5 h-5 text-accent-500" />
-                    </div>
-                    <div>
-                      <p className="font-medium text-slate-900">PDF Document</p>
-                      <p className="text-sm text-slate-500">View or download the document</p>
-                    </div>
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 bg-accent-50 rounded-lg flex items-center justify-center">
+                    <FileText className="w-5 h-5 text-accent-500" />
                   </div>
-                  <a href={lesson.contentUrl} target="_blank" rel="noopener noreferrer">
-                    <Button variant="secondary" size="sm" leftIcon={<Download className="w-4 h-4" />}>
-                      Download
-                    </Button>
-                  </a>
+                  <div>
+                    <p className="font-medium text-slate-900">PDF Document</p>
+                    <p className="text-sm text-slate-500">View the document below</p>
+                  </div>
                 </div>
                 <iframe
-                  src={`${lesson.contentUrl}#toolbar=0`}
-                  className="w-full h-[600px] rounded-lg border border-slate-200"
+                  src={`${lesson.contentUrl}#toolbar=0&navpanes=0&scrollbar=1`}
+                  className="w-full h-[700px] rounded-lg border border-slate-200"
+                  sandbox="allow-same-origin allow-scripts"
                 />
               </div>
-            )}
+            </div>
+          )}
 
-            {lesson.type === 'TEXT' && (
+          {lesson.type === 'TEXT' && (
+            <div className="bg-white rounded-xl border border-slate-200/80 shadow-soft overflow-hidden mb-6">
               <div className="p-6 lg:p-8">
                 {lesson.contentText ? (
                   <div
@@ -239,10 +239,10 @@ export default function LessonViewerPage() {
                   </div>
                 )}
               </div>
-            )}
-          </div>
+            </div>
+          )}
 
-          {/* Attachments */}
+          {/* Attachments (view only) */}
           {lesson.attachments && lesson.attachments.length > 0 && (
             <div className="bg-white rounded-xl border border-slate-200/80 shadow-soft overflow-hidden mb-6">
               <div className="px-6 py-4 border-b border-slate-100">
@@ -252,21 +252,17 @@ export default function LessonViewerPage() {
               <div className="p-4">
                 <div className="space-y-2">
                   {lesson.attachments.map((attachment) => (
-                    <a
+                    <div
                       key={attachment.id}
-                      href={attachment.fileUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-3.5 p-3.5 bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors group border border-transparent hover:border-slate-200"
+                      className="flex items-center gap-3.5 p-3.5 bg-slate-50 rounded-lg border border-transparent"
                     >
-                      <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center border border-slate-200 group-hover:border-slate-300">
+                      <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center border border-slate-200">
                         <FileText className="w-5 h-5 text-slate-500" />
                       </div>
-                      <span className="flex-1 font-medium text-slate-700 group-hover:text-slate-900">
+                      <span className="flex-1 font-medium text-slate-700">
                         {attachment.name}
                       </span>
-                      <Download className="w-4 h-4 text-slate-400 group-hover:text-slate-600" />
-                    </a>
+                    </div>
                   ))}
                 </div>
               </div>
