@@ -3,6 +3,7 @@ const express = require('express');
 const router = express.Router();
 const crypto = require('crypto');
 const { authenticate, requireLearner } = require('../middleware/auth');
+const { cacheGet, cacheDel } = require('../utils/cache');
 
 router.use(authenticate);
 router.use(requireLearner);
@@ -14,91 +15,91 @@ router.use(requireLearner);
 router.get('/home', async (req, res, next) => {
   try {
     const userId = req.user.id;
+    const cacheKey = `learner:home:${userId}`;
 
-    // Get enrollments with progress
-    const enrollments = await req.prisma.enrollment.findMany({
-      where: { userId },
-      include: {
-        program: {
-          include: {
-            _count: { select: { lessons: true } }
+    const data = await cacheGet(cacheKey, async () => {
+      // Get enrollments with progress
+      const enrollments = await req.prisma.enrollment.findMany({
+        where: { userId },
+        include: {
+          program: {
+            include: {
+              _count: { select: { lessons: true } }
+            }
           }
         }
+      });
+
+      // Get progress only for enrolled programs
+      const enrolledProgramIds = enrollments.map(e => e.programId);
+      const progress = await req.prisma.progress.findMany({
+        where: {
+          userId,
+          lesson: { programId: { in: enrolledProgramIds } }
+        },
+        include: {
+          lesson: {
+            select: {
+              id: true,
+              title: true,
+              programId: true,
+              durationSeconds: true
+            }
+          }
+        },
+        orderBy: { lastAccessedAt: 'desc' }
+      });
+
+      // Calculate program progress
+      const enrolledPrograms = enrollments.map(enrollment => {
+        const programProgress = progress.filter(
+          p => p.lesson.programId === enrollment.programId
+        );
+        const completedCount = programProgress.filter(p => p.status === 'COMPLETED').length;
+        const totalLessons = enrollment.program._count.lessons;
+
+        return {
+          id: enrollment.program.id,
+          name: enrollment.program.name,
+          description: enrollment.program.description,
+          thumbnailUrl: enrollment.program.thumbnailUrl,
+          completedLessons: completedCount,
+          totalLessons,
+          progressPercentage: totalLessons > 0 ? Math.round((completedCount / totalLessons) * 100) : 0,
+          lastAccessedAt: programProgress[0]?.lastAccessedAt || enrollment.enrolledAt
+        };
+      });
+
+      // Find continue learning (last in-progress lesson)
+      const inProgressLesson = progress.find(p => p.status === 'IN_PROGRESS');
+      let continueLearning = null;
+
+      if (inProgressLesson) {
+        const program = enrollments.find(e => e.programId === inProgressLesson.lesson.programId);
+        continueLearning = {
+          lessonId: inProgressLesson.lesson.id,
+          lessonTitle: inProgressLesson.lesson.title,
+          programName: program?.program.name,
+          watchPosition: inProgressLesson.watchPositionSeconds,
+          totalDuration: inProgressLesson.lesson.durationSeconds
+        };
       }
-    });
 
-    // Get progress only for enrolled programs
-    const enrolledProgramIds = enrollments.map(e => e.programId);
-    const progress = await req.prisma.progress.findMany({
-      where: {
-        userId,
-        lesson: { programId: { in: enrolledProgramIds } }
-      },
-      include: {
-        lesson: {
-          select: {
-            id: true,
-            title: true,
-            programId: true,
-            durationSeconds: true
-          }
-        }
-      },
-      orderBy: { lastAccessedAt: 'desc' }
-    });
-
-    // Calculate program progress
-    const enrolledPrograms = enrollments.map(enrollment => {
-      const programProgress = progress.filter(
-        p => p.lesson.programId === enrollment.programId
-      );
-      const completedCount = programProgress.filter(p => p.status === 'COMPLETED').length;
-      const totalLessons = enrollment.program._count.lessons;
+      // Get upcoming sessions
+      const programIds = enrollments.map(e => e.programId);
+      const upcomingSessions = await req.prisma.session.findMany({
+        where: {
+          startTime: { gte: new Date() },
+          OR: [
+            { sessionPrograms: { some: { programId: null } } },
+            { sessionPrograms: { some: { programId: { in: programIds } } } }
+          ]
+        },
+        take: 5,
+        orderBy: { startTime: 'asc' }
+      });
 
       return {
-        id: enrollment.program.id,
-        name: enrollment.program.name,
-        description: enrollment.program.description,
-        thumbnailUrl: enrollment.program.thumbnailUrl,
-        completedLessons: completedCount,
-        totalLessons,
-        progressPercentage: totalLessons > 0 ? Math.round((completedCount / totalLessons) * 100) : 0,
-        lastAccessedAt: programProgress[0]?.lastAccessedAt || enrollment.enrolledAt
-      };
-    });
-
-    // Find continue learning (last in-progress lesson)
-    const inProgressLesson = progress.find(p => p.status === 'IN_PROGRESS');
-    let continueLearning = null;
-
-    if (inProgressLesson) {
-      const program = enrollments.find(e => e.programId === inProgressLesson.lesson.programId);
-      continueLearning = {
-        lessonId: inProgressLesson.lesson.id,
-        lessonTitle: inProgressLesson.lesson.title,
-        programName: program?.program.name,
-        watchPosition: inProgressLesson.watchPositionSeconds,
-        totalDuration: inProgressLesson.lesson.durationSeconds
-      };
-    }
-
-    // Get upcoming sessions
-    const programIds = enrollments.map(e => e.programId);
-    const upcomingSessions = await req.prisma.session.findMany({
-      where: {
-        startTime: { gte: new Date() },
-        OR: [
-          { sessionPrograms: { some: { programId: null } } }, // All programs
-          { sessionPrograms: { some: { programId: { in: programIds } } } }
-        ]
-      },
-      take: 5,
-      orderBy: { startTime: 'asc' }
-    });
-
-    res.json({
-      success: true,
-      data: {
         user: { name: req.user.name },
         enrolledPrograms,
         continueLearning,
@@ -108,7 +109,12 @@ router.get('/home', async (req, res, next) => {
           startTime: s.startTime,
           meetLink: s.meetLink
         }))
-      }
+      };
+    }, 120); // 2 minutes (shorter TTL since it includes progress)
+
+    res.json({
+      success: true,
+      data
     });
   } catch (error) {
     next(error);
@@ -381,6 +387,9 @@ router.post('/lessons/:id/progress', async (req, res, next) => {
       }
     });
 
+    // Bust learner home cache (progress changed)
+    await cacheDel(`learner:home:${userId}`);
+
     res.json({
       success: true,
       data: {
@@ -418,6 +427,9 @@ router.post('/lessons/:id/complete', async (req, res, next) => {
         completedAt: new Date()
       }
     });
+
+    // Bust learner home cache (lesson completed)
+    await cacheDel(`learner:home:${userId}`);
 
     // Get next lesson
     const lesson = await req.prisma.lesson.findUnique({

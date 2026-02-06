@@ -2,6 +2,7 @@
 const express = require('express');
 const router = express.Router();
 const { authenticate, requireAdmin } = require('../../middleware/auth');
+const { cacheGet, cacheInvalidate } = require('../../utils/cache');
 
 // Apply auth to all routes
 router.use(authenticate);
@@ -22,43 +23,44 @@ router.get('/', async (req, res, next) => {
       take: parseInt(limit)
     };
 
-    const [programs, total] = await Promise.all([
-      req.prisma.program.findMany({
-        include: {
-          _count: {
-            select: {
-              enrollments: true,
-              lessons: true
+    const cacheKey = `programs:list:${all}:${page}:${limit}`;
+
+    const result = await cacheGet(cacheKey, async () => {
+      const [programs, total] = await Promise.all([
+        req.prisma.program.findMany({
+          include: {
+            _count: {
+              select: {
+                enrollments: true,
+                lessons: true
+              }
+            },
+            lessons: {
+              select: { durationSeconds: true }
             }
           },
-          lessons: {
-            select: { durationSeconds: true }
-          }
-        },
-        orderBy: { createdAt: 'desc' },
-        ...paginationOptions
-      }),
-      req.prisma.program.count()
-    ]);
+          orderBy: { createdAt: 'desc' },
+          ...paginationOptions
+        }),
+        req.prisma.program.count()
+      ]);
 
-    const programsWithStats = programs.map(program => {
-      const totalDuration = program.lessons.reduce((sum, l) => sum + (l.durationSeconds || 0), 0);
+      const programsWithStats = programs.map(program => {
+        const totalDuration = program.lessons.reduce((sum, l) => sum + (l.durationSeconds || 0), 0);
+        return {
+          id: program.id,
+          name: program.name,
+          description: program.description,
+          thumbnailUrl: program.thumbnailUrl,
+          isPublished: program.isPublished,
+          learnerCount: program._count.enrollments,
+          lessonCount: program._count.lessons,
+          totalDurationHours: Math.round(totalDuration / 3600 * 10) / 10,
+          createdAt: program.createdAt
+        };
+      });
+
       return {
-        id: program.id,
-        name: program.name,
-        description: program.description,
-        thumbnailUrl: program.thumbnailUrl,
-        isPublished: program.isPublished,
-        learnerCount: program._count.enrollments,
-        lessonCount: program._count.lessons,
-        totalDurationHours: Math.round(totalDuration / 3600 * 10) / 10,
-        createdAt: program.createdAt
-      };
-    });
-
-    res.json({
-      success: true,
-      data: {
         programs: programsWithStats,
         pagination: all === 'true' ? null : {
           total,
@@ -66,7 +68,12 @@ router.get('/', async (req, res, next) => {
           limit: parseInt(limit),
           totalPages: Math.ceil(total / parseInt(limit))
         }
-      }
+      };
+    }, 300); // 5 minutes
+
+    res.json({
+      success: true,
+      data: result
     });
   } catch (error) {
     next(error);
@@ -95,6 +102,8 @@ router.post('/', async (req, res, next) => {
         thumbnailUrl
       }
     });
+
+    await cacheInvalidate('programs:');
 
     res.status(201).json({
       success: true,
@@ -260,6 +269,8 @@ router.put('/:id', async (req, res, next) => {
       }
     });
 
+    await cacheInvalidate('programs:');
+
     res.json({
       success: true,
       data: { program }
@@ -283,6 +294,8 @@ router.post('/:id/publish', async (req, res, next) => {
       data: { isPublished }
     });
 
+    await cacheInvalidate('programs:');
+
     res.json({
       success: true,
       data: { program },
@@ -304,6 +317,9 @@ router.delete('/:id', async (req, res, next) => {
     await req.prisma.program.delete({
       where: { id }
     });
+
+    await cacheInvalidate('programs:');
+    await cacheInvalidate('learner:');
 
     res.json({
       success: true,
@@ -468,6 +484,9 @@ router.post('/lessons', async (req, res, next) => {
       }
     })();
 
+    await cacheInvalidate('programs:');
+    await cacheInvalidate('learner:');
+
     res.status(201).json({ success: true, data: { lesson } });
   } catch (error) {
     next(error);
@@ -484,6 +503,9 @@ router.put('/lessons/:id', async (req, res, next) => {
       data: { title, type, contentUrl, contentText, durationSeconds, orderIndex, instructorNotes, thumbnailUrl }
     });
 
+    await cacheInvalidate('programs:');
+    await cacheInvalidate('learner:');
+
     res.json({ success: true, data: { lesson } });
   } catch (error) {
     next(error);
@@ -494,6 +516,8 @@ router.delete('/lessons/:id', async (req, res, next) => {
   try {
     const { id } = req.params;
     await req.prisma.lesson.delete({ where: { id } });
+    await cacheInvalidate('programs:');
+    await cacheInvalidate('learner:');
     res.json({ success: true, message: 'Lesson deleted' });
   } catch (error) {
     next(error);
