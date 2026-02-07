@@ -133,33 +133,6 @@ export default function LessonViewerPage() {
           </div>
         </div>
 
-        {/* Video Content — full width for immersive viewing */}
-        {lesson.type === 'VIDEO' && lesson.contentUrl && (
-          <div className="bg-black">
-            <div className="max-w-7xl mx-auto">
-              <div style={{ position: 'relative', paddingTop: '56.25%' }}>
-                <iframe
-                  src={progress?.watchPositionSeconds
-                    ? `${lesson.contentUrl}${lesson.contentUrl.includes('?') ? '&' : '?'}t=${progress.watchPositionSeconds}&autoplay=false&preload=true&responsive=true`
-                    : `${lesson.contentUrl}${lesson.contentUrl.includes('?') ? '&' : '?'}autoplay=false&preload=true&responsive=true`
-                  }
-                  loading="lazy"
-                  style={{
-                    border: 'none',
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    height: '100%',
-                    width: '100%',
-                  }}
-                  allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture"
-                  allowFullScreen
-                />
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* Content */}
         <div className="max-w-6xl mx-auto p-6 lg:p-8">
           {/* Lesson Header */}
@@ -199,6 +172,31 @@ export default function LessonViewerPage() {
               </Button>
             )}
           </div>
+
+          {/* Lesson Content */}
+          {lesson.type === 'VIDEO' && lesson.contentUrl && (
+            <div className="bg-white rounded-xl border border-slate-200/80 shadow-soft overflow-hidden mb-6">
+              <div style={{ position: 'relative', paddingTop: '56.25%' }}>
+                <iframe
+                  src={progress?.watchPositionSeconds
+                    ? `${lesson.contentUrl}${lesson.contentUrl.includes('?') ? '&' : '?'}t=${progress.watchPositionSeconds}&autoplay=false&preload=true`
+                    : `${lesson.contentUrl}${lesson.contentUrl.includes('?') ? '&' : '?'}autoplay=false&preload=true`
+                  }
+                  loading="lazy"
+                  style={{
+                    border: 'none',
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    height: '100%',
+                    width: '100%',
+                  }}
+                  allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture"
+                  allowFullScreen
+                />
+              </div>
+            </div>
+          )}
 
           {/* PDF / Text Content */}
           {lesson.type === 'PDF' && lesson.contentUrl && (

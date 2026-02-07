@@ -315,6 +315,8 @@ router.get('/lessons/:id', async (req, res, next) => {
     // Generate signed video URL if video
     let contentUrl = lesson.contentUrl;
     if (lesson.type === 'VIDEO' && contentUrl) {
+      // Ensure embed URL format (not /play/) for responsive sizing
+      contentUrl = contentUrl.replace('/play/', '/embed/');
       contentUrl = generateSignedVideoUrl(contentUrl);
     }
 
