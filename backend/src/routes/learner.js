@@ -164,7 +164,7 @@ router.get('/programs/:id', async (req, res, next) => {
           orderBy: { orderIndex: 'asc' }
         },
         lessons: {
-          where: { topicId: null },
+          where: { topicId: null, subtopicId: null },
           orderBy: { orderIndex: 'asc' }
         }
       }
@@ -193,42 +193,54 @@ router.get('/programs/:id', async (req, res, next) => {
       title: lesson.title,
       lessonType: lesson.type,
       durationSeconds: lesson.durationSeconds,
+      orderIndex: lesson.orderIndex,
       progress: progressMap.get(lesson.id) || { status: 'NOT_STARTED', watchPositionSeconds: 0 }
     });
 
     const content = [];
 
     for (const topic of program.topics) {
-      const topicItem = {
-        id: topic.id,
-        type: 'topic',
-        name: topic.name,
-        children: []
-      };
+      const topicChildren = [];
 
       for (const subtopic of topic.subtopics) {
-        topicItem.children.push({
+        topicChildren.push({
           id: subtopic.id,
           type: 'subtopic',
           name: subtopic.name,
+          orderIndex: subtopic.orderIndex,
           children: subtopic.lessons.map(buildLessonWithProgress)
         });
       }
 
       for (const lesson of topic.lessons) {
-        topicItem.children.push(buildLessonWithProgress(lesson));
+        topicChildren.push(buildLessonWithProgress(lesson));
       }
 
-      content.push(topicItem);
+      // Sort children by orderIndex so subtopics and direct lessons interleave correctly
+      topicChildren.sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0));
+
+      content.push({
+        id: topic.id,
+        type: 'topic',
+        name: topic.name,
+        orderIndex: topic.orderIndex,
+        children: topicChildren
+      });
     }
 
     for (const lesson of program.lessons) {
       content.push(buildLessonWithProgress(lesson));
     }
 
-    // Calculate overall progress
-    const allLessons = await req.prisma.lesson.count({ where: { programId: id } });
-    const completedLessons = progressRecords.filter(p => p.status === 'COMPLETED').length;
+    // Build progress map for frontend
+    const progress = {};
+    for (const p of progressRecords) {
+      progress[p.lessonId] = {
+        status: p.status,
+        watchPositionSeconds: p.watchPositionSeconds || 0,
+        completedAt: p.completedAt
+      };
+    }
 
     res.json({
       success: true,
@@ -236,14 +248,11 @@ router.get('/programs/:id', async (req, res, next) => {
         program: {
           id: program.id,
           name: program.name,
-          description: program.description
+          description: program.description,
+          thumbnailUrl: program.thumbnailUrl
         },
         content,
-        overallProgress: {
-          completed: completedLessons,
-          total: allLessons,
-          percentage: allLessons > 0 ? Math.round((completedLessons / allLessons) * 100) : 0
-        }
+        progress
       }
     });
   } catch (error) {
@@ -353,7 +362,9 @@ router.get('/lessons/:id', async (req, res, next) => {
         },
         navigation: {
           previousLesson: prevLesson ? { id: prevLesson.id, title: prevLesson.title } : null,
-          nextLesson: nextLesson ? { id: nextLesson.id, title: nextLesson.title } : null
+          nextLesson: nextLesson ? { id: nextLesson.id, title: nextLesson.title } : null,
+          currentIndex: currentIndex + 1,
+          totalLessons: programLessons.length
         }
       }
     });
@@ -389,8 +400,11 @@ router.post('/lessons/:id/progress', async (req, res, next) => {
       }
     });
 
-    // Bust learner home cache (progress changed)
-    await cacheDel(`learner:home:${userId}`);
+    // Bust caches (progress changed)
+    await Promise.all([
+      cacheDel(`learner:home:${userId}`),
+      cacheDel(`learner:profile:${userId}`)
+    ]);
 
     res.json({
       success: true,
@@ -430,8 +444,11 @@ router.post('/lessons/:id/complete', async (req, res, next) => {
       }
     });
 
-    // Bust learner home cache (lesson completed)
-    await cacheDel(`learner:home:${userId}`);
+    // Bust caches (lesson completed)
+    await Promise.all([
+      cacheDel(`learner:home:${userId}`),
+      cacheDel(`learner:profile:${userId}`)
+    ]);
 
     // Get next lesson
     const lesson = await req.prisma.lesson.findUnique({
@@ -462,11 +479,17 @@ router.post('/lessons/:id/complete', async (req, res, next) => {
 
 /**
  * GET /learner/sessions
- * Get upcoming sessions
+ * Get sessions for a given month (defaults to current month)
  */
 router.get('/sessions', async (req, res, next) => {
   try {
     const userId = req.user.id;
+    const now = new Date();
+    const month = parseInt(req.query.month) || (now.getMonth() + 1);
+    const year = parseInt(req.query.year) || now.getFullYear();
+
+    const startDate = new Date(year, month - 1, 1);
+    const endDate = new Date(year, month, 0, 23, 59, 59);
 
     // Get enrolled program IDs
     const enrollments = await req.prisma.enrollment.findMany({
@@ -475,17 +498,30 @@ router.get('/sessions', async (req, res, next) => {
     });
     const programIds = enrollments.map(e => e.programId);
 
-    const sessions = await req.prisma.session.findMany({
-      where: {
-        startTime: { gte: new Date() },
-        OR: [
-          { sessionPrograms: { some: { programId: null } } },
-          { sessionPrograms: { some: { programId: { in: programIds } } } }
-        ]
-      },
-      orderBy: { startTime: 'asc' },
-      take: 20
-    });
+    const programFilter = {
+      OR: [
+        { sessionPrograms: { some: { programId: null } } },
+        { sessionPrograms: { some: { programId: { in: programIds } } } }
+      ]
+    };
+
+    const [sessions, total] = await Promise.all([
+      req.prisma.session.findMany({
+        where: {
+          startTime: { gte: startDate, lte: endDate },
+          ...programFilter
+        },
+        include: {
+          sessionPrograms: {
+            include: { program: { select: { name: true } } }
+          }
+        },
+        orderBy: { startTime: 'asc' }
+      }),
+      req.prisma.session.count({
+        where: programFilter
+      })
+    ]);
 
     res.json({
       success: true,
@@ -496,8 +532,10 @@ router.get('/sessions', async (req, res, next) => {
           description: s.description,
           startTime: s.startTime,
           endTime: s.endTime,
-          meetLink: s.meetLink
-        }))
+          meetLink: s.meetLink,
+          programName: s.sessionPrograms.find(sp => sp.program)?.program?.name || null
+        })),
+        total
       }
     });
   } catch (error) {
@@ -531,12 +569,27 @@ router.get('/sessions/calendar', async (req, res, next) => {
           { sessionPrograms: { some: { programId: { in: programIds } } } }
         ]
       },
+      include: {
+        sessionPrograms: {
+          include: { program: { select: { name: true } } }
+        }
+      },
       orderBy: { startTime: 'asc' }
     });
 
     res.json({
       success: true,
-      data: { sessions }
+      data: {
+        sessions: sessions.map(s => ({
+          id: s.id,
+          name: s.name,
+          description: s.description,
+          startTime: s.startTime,
+          endTime: s.endTime,
+          meetLink: s.meetLink,
+          programName: s.sessionPrograms.find(sp => sp.program)?.program?.name || null
+        }))
+      }
     });
   } catch (error) {
     next(error);
@@ -545,34 +598,71 @@ router.get('/sessions/calendar', async (req, res, next) => {
 
 /**
  * GET /learner/profile
- * Get learner profile
+ * Get learner profile with progress counts
  */
 router.get('/profile', async (req, res, next) => {
   try {
-    const user = await req.prisma.user.findUnique({
-      where: { id: req.user.id },
-      include: {
-        enrollments: {
-          include: {
-            program: { select: { name: true } }
+    const userId = req.user.id;
+    const cacheKey = `learner:profile:${userId}`;
+
+    const data = await cacheGet(cacheKey, async () => {
+      const user = await req.prisma.user.findUnique({
+        where: { id: userId },
+        include: {
+          enrollments: {
+            include: {
+              program: { select: { id: true, name: true } }
+            }
+          }
+        }
+      });
+
+      const enrolledProgramIds = user.enrollments.map(e => e.programId);
+      const enrolledPrograms = user.enrollments.map(e => e.program.name);
+
+      // Fetch progress counts in parallel
+      const [completedLessonsCount, totalLessonsCount] = await Promise.all([
+        req.prisma.progress.count({
+          where: { userId, status: 'COMPLETED' }
+        }),
+        req.prisma.lesson.count({
+          where: { programId: { in: enrolledProgramIds } }
+        })
+      ]);
+
+      // Derive completed programs: a program is completed when all its lessons are done
+      let completedProgramsCount = 0;
+      if (enrolledProgramIds.length > 0) {
+        for (const programId of enrolledProgramIds) {
+          const programLessonCount = await req.prisma.lesson.count({ where: { programId } });
+          if (programLessonCount === 0) continue;
+          const completedInProgram = await req.prisma.progress.count({
+            where: { userId, status: 'COMPLETED', lesson: { programId } }
+          });
+          if (completedInProgram >= programLessonCount) {
+            completedProgramsCount++;
           }
         }
       }
-    });
+
+      return {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        mobile: user.mobile,
+        registrationNumber: user.registrationNumber,
+        createdAt: user.createdAt,
+        enrolledPrograms,
+        enrolledProgramsCount: enrolledPrograms.length,
+        completedLessonsCount,
+        totalLessonsCount,
+        completedProgramsCount
+      };
+    }, 300); // 5 minutes
 
     res.json({
       success: true,
-      data: {
-        user: {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          mobile: user.mobile,
-          registrationNumber: user.registrationNumber,
-          createdAt: user.createdAt
-        },
-        enrolledPrograms: user.enrollments.map(e => e.program.name)
-      }
+      data
     });
   } catch (error) {
     next(error);

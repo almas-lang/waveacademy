@@ -119,7 +119,8 @@ export function useCompleteLesson() {
       queryClient.invalidateQueries({ queryKey: learnerKeys.lesson(lessonId) });
       // Invalidate all program queries since progress changed
       queryClient.invalidateQueries({ queryKey: [...learnerKeys.all, 'program'] });
-      toast.success('Lesson completed!');
+      // Invalidate profile so stats (lessons done, completed programs) update
+      queryClient.invalidateQueries({ queryKey: learnerKeys.profile() });
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.error?.message || 'Failed to mark lesson as complete');

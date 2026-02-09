@@ -57,10 +57,16 @@ export default function LearnerProgramDetailPage() {
     return data?.progress?.[lessonId]?.status || 'NOT_STARTED';
   };
 
+  // Recursively count all lessons within a content item
+  const countNestedLessons = (item: LearnerContentItem): number => {
+    if (item.type === 'lesson') return 1;
+    if (!item.children) return 0;
+    return item.children.reduce((sum, child) => sum + countNestedLessons(child), 0);
+  };
+
   const renderContentItem = (item: LearnerContentItem, depth: number = 0) => {
     const hasChildren = item.children && item.children.length > 0;
     const isExpanded = expandedItems.has(item.id);
-    const paddingLeft = depth * 20;
 
     if (item.type === 'lesson') {
       const status = getProgressStatus(item.id);
@@ -77,14 +83,14 @@ export default function LearnerProgramDetailPage() {
               ? 'bg-emerald-50 hover:bg-emerald-100 border border-emerald-100'
               : 'hover:bg-slate-50 border border-transparent hover:border-slate-200'
           )}
-          style={{ marginLeft: paddingLeft }}
+          style={{ marginLeft: depth * 20 }}
         >
           <div className="flex items-center gap-3.5">
             <div className={clsx(
               'w-10 h-10 rounded-lg flex items-center justify-center transition-colors',
               isCompleted ? 'bg-emerald-500 text-white' :
               isInProgress ? 'bg-accent-500 text-white' :
-              'bg-slate-100 text-slate-500 group-hover:bg-slate-900 group-hover:text-white'
+              'bg-primary-50 text-primary-600 group-hover:bg-primary-700 group-hover:text-white'
             )}>
               {isCompleted ? <CheckCircle className="w-5 h-5" /> : getLessonIcon(item.lessonType)}
             </div>
@@ -120,18 +126,21 @@ export default function LearnerProgramDetailPage() {
     }
 
     // Topic or Subtopic
+    const lessonCount = countNestedLessons(item);
+
     return (
-      <div key={item.id} style={{ marginLeft: paddingLeft }}>
+      <div key={item.id} style={{ marginLeft: depth * 20 }}>
         <button
-          onClick={() => toggleExpand(item.id)}
+          onClick={() => hasChildren && toggleExpand(item.id)}
           className={clsx(
             'flex items-center gap-3 w-full py-3 px-4 rounded-lg transition-colors text-left',
-            isExpanded ? 'bg-slate-100' : 'hover:bg-slate-50'
+            hasChildren && isExpanded ? 'bg-primary-50' : hasChildren ? 'hover:bg-slate-50' : 'bg-slate-50/50',
+            !hasChildren && 'cursor-default'
           )}
         >
           <div className={clsx(
             'w-8 h-8 rounded-lg flex items-center justify-center transition-colors',
-            isExpanded ? 'bg-slate-900 text-white' : 'bg-slate-200 text-slate-600'
+            hasChildren && isExpanded ? 'bg-primary-700 text-white' : 'bg-primary-100 text-primary-600'
           )}>
             {hasChildren ? (
               isExpanded ? (
@@ -140,7 +149,7 @@ export default function LearnerProgramDetailPage() {
                 <ChevronRight className="w-4 h-4" />
               )
             ) : (
-              <span className="w-4 h-4" />
+              <BookOpen className="w-4 h-4" />
             )}
           </div>
           <div className="flex-1">
@@ -150,16 +159,14 @@ export default function LearnerProgramDetailPage() {
             )}>
               {item.name}
             </span>
-            {hasChildren && (
-              <span className="text-xs text-slate-400 ml-2">
-                {item.children?.filter(c => c.type === 'lesson').length || 0} lessons
-              </span>
-            )}
+            <span className="text-xs text-slate-400 ml-2">
+              {lessonCount} {lessonCount === 1 ? 'lesson' : 'lessons'}
+            </span>
           </div>
         </button>
 
         {isExpanded && hasChildren && (
-          <div className="mt-2 space-y-2 pl-4 border-l-2 border-slate-200 ml-4">
+          <div className="mt-2 space-y-2 pl-4 border-l-2 border-primary-200 ml-4">
             {item.children!.map((child) => renderContentItem(child, depth + 1))}
           </div>
         )}
@@ -221,7 +228,7 @@ export default function LearnerProgramDetailPage() {
     );
   };
 
-  const lessonCounts = countLessons(content);
+  const lessonCounts = countLessons(content.filter(item => item.type !== 'lesson'));
   const progressPercentage = lessonCounts.total > 0
     ? Math.round((lessonCounts.completed / lessonCounts.total) * 100)
     : 0;
@@ -245,11 +252,11 @@ export default function LearnerProgramDetailPage() {
         </Link>
 
         {/* Program Header Card */}
-        <div className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-2xl p-6 lg:p-8 mb-6">
+        <div className="relative overflow-hidden bg-gradient-to-br from-primary-600 via-primary-500 to-primary-700 rounded-2xl p-6 lg:p-8 mb-6">
           {/* Background pattern */}
           <div className="absolute inset-0 opacity-10">
             <div className="absolute top-0 right-0 w-64 h-64 bg-accent-500 rounded-full blur-3xl" />
-            <div className="absolute bottom-0 left-0 w-48 h-48 bg-slate-500 rounded-full blur-3xl" />
+            <div className="absolute bottom-0 left-0 w-48 h-48 bg-primary-400 rounded-full blur-3xl" />
           </div>
 
           <div className="relative flex flex-col lg:flex-row gap-6">
@@ -272,13 +279,13 @@ export default function LearnerProgramDetailPage() {
             <div className="flex-1">
               <h1 className="text-2xl lg:text-3xl font-bold text-white mb-3">{program.name}</h1>
               {program.description && (
-                <p className="text-slate-300 mb-5 line-clamp-2">{program.description}</p>
+                <p className="text-primary-200 mb-5 line-clamp-2">{program.description}</p>
               )}
 
               {/* Progress */}
               <div className="mb-5">
                 <div className="flex items-center justify-between text-sm mb-2">
-                  <span className="text-slate-400">
+                  <span className="text-primary-300">
                     {lessonCounts.completed} / {lessonCounts.total} lessons completed
                   </span>
                   <span className="font-bold text-white">{progressPercentage}%</span>
@@ -288,7 +295,7 @@ export default function LearnerProgramDetailPage() {
                     className="h-full rounded-full transition-all duration-500 ease-out"
                     style={{
                       width: `${progressPercentage}%`,
-                      backgroundColor: progressPercentage === 100 ? '#10b981' : '#FF0023'
+                      backgroundColor: progressPercentage === 100 ? '#10b981' : '#FF6B57'
                     }}
                   />
                 </div>
@@ -327,7 +334,7 @@ export default function LearnerProgramDetailPage() {
           <div className="p-4">
             {content.length > 0 ? (
               <div className="space-y-2">
-                {content.map((item) => renderContentItem(item))}
+                {content.filter(item => item.type !== 'lesson').map((item) => renderContentItem(item))}
               </div>
             ) : (
               <div className="text-center py-16">

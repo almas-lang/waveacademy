@@ -99,42 +99,50 @@ router.post('/login', async (req, res, next) => {
       });
     }
 
-    // Check active sessions (max 2 devices)
-    const activeSessions = await req.prisma.userSession.count({
-      where: {
-        userId: user.id,
-        expiresAt: { gt: new Date() }
-      }
-    });
-
-    if (activeSessions >= 2) {
-      return res.status(403).json({
-        success: false,
-        error: {
-          code: 'MAX_SESSIONS_REACHED',
-          message: 'You are already logged in on 2 devices. Please logout from one device first.'
-        }
-      });
-    }
-
-    // Generate token
+    // Check active sessions + create in a serializable transaction to prevent race conditions
     const token = jwt.sign(
       { userId: user.id, role: user.role },
       process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
 
-    // Create session record
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
-    await req.prisma.userSession.create({
-      data: {
-        userId: user.id,
-        token,
-        deviceInfo: req.headers['user-agent'] || null,
-        ipAddress: req.ip || req.headers['x-forwarded-for'] || null,
-        expiresAt
+
+    try {
+      await req.prisma.$transaction(async (tx) => {
+        const activeSessions = await tx.userSession.count({
+          where: {
+            userId: user.id,
+            expiresAt: { gt: new Date() }
+          }
+        });
+
+        if (activeSessions >= 2) {
+          throw new Error('MAX_SESSIONS_REACHED');
+        }
+
+        await tx.userSession.create({
+          data: {
+            userId: user.id,
+            token,
+            deviceInfo: req.headers['user-agent'] || null,
+            ipAddress: req.ip || req.headers['x-forwarded-for'] || null,
+            expiresAt
+          }
+        });
+      }, { isolationLevel: 'Serializable' });
+    } catch (txError) {
+      if (txError.message === 'MAX_SESSIONS_REACHED') {
+        return res.status(403).json({
+          success: false,
+          error: {
+            code: 'MAX_SESSIONS_REACHED',
+            message: 'You are already logged in on 2 devices. Please logout from one device first.'
+          }
+        });
       }
-    });
+      throw txError;
+    }
 
     setTokenCookie(res, token);
 

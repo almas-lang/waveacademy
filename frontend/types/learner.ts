@@ -94,6 +94,8 @@ export interface LearnerLesson {
   navigation: {
     previousLesson?: { id: string; title: string };
     nextLesson?: { id: string; title: string };
+    currentIndex?: number;
+    totalLessons?: number;
   };
 }
 
@@ -111,7 +113,10 @@ export interface LearnerProfile {
   email: string;
   mobile?: string;
   registrationNumber?: string;
+  enrolledPrograms: string[];
   enrolledProgramsCount: number;
   completedLessonsCount: number;
+  totalLessonsCount: number;
+  completedProgramsCount: number;
   createdAt: string;
 }
