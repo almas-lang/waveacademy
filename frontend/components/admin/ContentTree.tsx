@@ -662,19 +662,29 @@ export default function ContentTree({ programId, content, onRefresh }: ContentTr
   // Content handlers
   const handleAddTopic = async () => {
     if (!newTopicName.trim()) return;
-    await createTopic.mutateAsync({ programId, name: newTopicName.trim() });
-    setNewTopicName('');
-    setShowAddTopic(false);
+    try {
+      await createTopic.mutateAsync({ programId, name: newTopicName.trim() });
+    } catch {
+      // Error handled by mutation onError
+    } finally {
+      setNewTopicName('');
+      setShowAddTopic(false);
+    }
   };
 
   const handleAddSubtopic = async () => {
     if (!newSubtopicName.trim() || !showAddSubtopic) return;
-    await createSubtopic.mutateAsync({
-      data: { topicId: showAddSubtopic.topicId, name: newSubtopicName.trim() },
-      programId,
-    });
-    setNewSubtopicName('');
-    setShowAddSubtopic(null);
+    try {
+      await createSubtopic.mutateAsync({
+        data: { topicId: showAddSubtopic.topicId, name: newSubtopicName.trim() },
+        programId,
+      });
+    } catch {
+      // Error handled by mutation onError
+    } finally {
+      setNewSubtopicName('');
+      setShowAddSubtopic(null);
+    }
   };
 
   const handleAddLesson = async () => {
@@ -704,9 +714,14 @@ export default function ContentTree({ programId, content, onRefresh }: ContentTr
     if (lessonNotes) data.instructorNotes = lessonNotes;
     if (lessonDuration) data.durationSeconds = parseDuration(lessonDuration, lessonType);
 
-    await createLesson.mutateAsync(data);
-    resetLessonForm();
-    setShowAddLesson(null);
+    try {
+      await createLesson.mutateAsync(data);
+    } catch {
+      // Error handled by mutation onError
+    } finally {
+      resetLessonForm();
+      setShowAddLesson(null);
+    }
   };
 
   const handleUpdateLesson = async () => {
@@ -729,40 +744,55 @@ export default function ContentTree({ programId, content, onRefresh }: ContentTr
     if (lessonNotes) data.instructorNotes = lessonNotes;
     if (lessonDuration) data.durationSeconds = parseDuration(lessonDuration, lessonType);
 
-    await updateLesson.mutateAsync({ id: editingLesson.id, data, programId });
-    resetLessonForm();
-    setEditingLesson(null);
-    onRefresh?.();
+    try {
+      await updateLesson.mutateAsync({ id: editingLesson.id, data, programId });
+    } catch {
+      // Error handled by mutation onError
+    } finally {
+      resetLessonForm();
+      setEditingLesson(null);
+      onRefresh?.();
+    }
   };
 
   const handleUpdateTopic = async () => {
     if (!editingTopic || !editingTopic.name.trim()) return;
-    if (editingTopic.type === 'subtopic') {
-      await updateSubtopic.mutateAsync({
-        id: editingTopic.id,
-        data: { name: editingTopic.name.trim() },
-        programId,
-      });
-    } else {
-      await updateTopic.mutateAsync({
-        id: editingTopic.id,
-        data: { name: editingTopic.name.trim() },
-        programId,
-      });
+    try {
+      if (editingTopic.type === 'subtopic') {
+        await updateSubtopic.mutateAsync({
+          id: editingTopic.id,
+          data: { name: editingTopic.name.trim() },
+          programId,
+        });
+      } else {
+        await updateTopic.mutateAsync({
+          id: editingTopic.id,
+          data: { name: editingTopic.name.trim() },
+          programId,
+        });
+      }
+    } catch {
+      // Error handled by mutation onError
+    } finally {
+      setEditingTopic(null);
     }
-    setEditingTopic(null);
   };
 
   const handleDelete = async () => {
     if (!deletingItem) return;
-    if (deletingItem.type === 'topic') {
-      await deleteTopic.mutateAsync({ id: deletingItem.id, programId });
-    } else if (deletingItem.type === 'subtopic') {
-      await deleteSubtopic.mutateAsync({ id: deletingItem.id, programId });
-    } else if (deletingItem.type === 'lesson') {
-      await deleteLesson.mutateAsync({ id: deletingItem.id, programId });
+    try {
+      if (deletingItem.type === 'topic') {
+        await deleteTopic.mutateAsync({ id: deletingItem.id, programId });
+      } else if (deletingItem.type === 'subtopic') {
+        await deleteSubtopic.mutateAsync({ id: deletingItem.id, programId });
+      } else if (deletingItem.type === 'lesson') {
+        await deleteLesson.mutateAsync({ id: deletingItem.id, programId });
+      }
+    } catch {
+      // Error handled by mutation onError
+    } finally {
+      setDeletingItem(null);
     }
-    setDeletingItem(null);
   };
 
   const handleThumbnailUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
