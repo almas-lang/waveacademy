@@ -95,7 +95,11 @@ router.post('/thumbnail', upload.single('file'), async (req, res, next) => {
       data: { url }
     });
   } catch (error) {
-    next(error);
+    console.error('Thumbnail upload error:', error.message, error.Code || error.code);
+    res.status(500).json({
+      success: false,
+      error: { code: 'UPLOAD_ERROR', message: `Upload failed: ${error.message}` }
+    });
   }
 });
 
