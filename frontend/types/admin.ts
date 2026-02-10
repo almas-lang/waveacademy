@@ -132,7 +132,7 @@ export interface PaginatedResponse<T> {
 export interface CreateProgramData {
   name: string;
   description?: string;
-  thumbnailUrl?: string;
+  thumbnailUrl?: string | null;
 }
 
 export interface CreateLearnerData {

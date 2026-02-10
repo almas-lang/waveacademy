@@ -94,7 +94,7 @@ export default function ProgramModal({ isOpen, onClose, program }: ProgramModalP
     const data: CreateProgramData = {
       name: name.trim(),
       description: description.trim() || undefined,
-      thumbnailUrl: thumbnailUrl || undefined,
+      thumbnailUrl: thumbnailUrl || null,
     };
 
     try {
