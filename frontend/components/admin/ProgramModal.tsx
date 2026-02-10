@@ -81,7 +81,7 @@ export default function ProgramModal({ isOpen, onClose, program }: ProgramModalP
       }
     } catch (error: any) {
       console.error('Upload error:', error);
-      toast.error(error?.response?.data?.message || 'Failed to upload thumbnail');
+      toast.error(error?.response?.data?.error?.message || 'Failed to upload thumbnail');
     } finally {
       setUploading(false);
     }
