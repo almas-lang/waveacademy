@@ -112,7 +112,7 @@ router.post('/', async (req, res, next) => {
       }
     });
 
-    await clearProgramsCache();
+    clearProgramsCache();
 
     res.status(201).json({
       success: true,
@@ -278,7 +278,7 @@ router.put('/:id', async (req, res, next) => {
       }
     });
 
-    await clearProgramsCache();
+    clearProgramsCache();
 
     res.json({
       success: true,
@@ -303,7 +303,7 @@ router.post('/:id/publish', async (req, res, next) => {
       data: { isPublished }
     });
 
-    await clearProgramsCache();
+    clearProgramsCache();
 
     res.json({
       success: true,
@@ -352,7 +352,7 @@ router.delete('/:id', async (req, res, next) => {
       deleteR2Files(urls).catch(() => {});
     }
 
-    await clearProgramsCache();
+    clearProgramsCache();
 
     res.json({
       success: true,
@@ -517,7 +517,7 @@ router.post('/lessons', async (req, res, next) => {
       }
     })();
 
-    await clearProgramsCache();
+    clearProgramsCache();
 
     res.status(201).json({ success: true, data: { lesson } });
   } catch (error) {
@@ -535,7 +535,7 @@ router.put('/lessons/:id', async (req, res, next) => {
       data: { title, type, contentUrl, contentText, durationSeconds, orderIndex, instructorNotes, thumbnailUrl }
     });
 
-    await clearProgramsCache();
+    clearProgramsCache();
 
     res.json({ success: true, data: { lesson } });
   } catch (error) {
@@ -566,7 +566,7 @@ router.delete('/lessons/:id', async (req, res, next) => {
       deleteR2Files(urls).catch(() => {});
     }
 
-    await clearProgramsCache();
+    clearProgramsCache();
     res.json({ success: true, message: 'Lesson deleted' });
   } catch (error) {
     next(error);
