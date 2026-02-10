@@ -6,6 +6,7 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const { sendPasswordSetupEmail, sendPasswordResetEmail } = require('../utils/email');
 const { authenticate } = require('../middleware/auth');
+const { cacheDel } = require('../utils/cache');
 
 const COOKIE_MAX_AGE = 7 * 24 * 60 * 60 * 1000; // 7 days
 
@@ -567,6 +568,8 @@ router.post('/logout', async (req, res, next) => {
       await req.prisma.userSession.delete({
         where: { token }
       }).catch(() => {});
+      // Clear cached auth for this token
+      await cacheDel(`auth:${token.slice(-16)}`);
     }
 
     clearTokenCookie(res);

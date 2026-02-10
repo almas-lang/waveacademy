@@ -620,26 +620,46 @@ router.get('/profile', async (req, res, next) => {
       const enrolledProgramIds = user.enrollments.map(e => e.programId);
       const enrolledPrograms = user.enrollments.map(e => e.program.name);
 
-      // Fetch progress counts in parallel
-      const [completedLessonsCount, totalLessonsCount] = await Promise.all([
+      // Fetch all counts in parallel (2 queries instead of 2N)
+      const [completedLessonsCount, totalLessonsCount, lessonsByProgram, completedByProgram] = await Promise.all([
         req.prisma.progress.count({
           where: { userId, status: 'COMPLETED' }
         }),
         req.prisma.lesson.count({
           where: { programId: { in: enrolledProgramIds } }
-        })
+        }),
+        req.prisma.lesson.groupBy({
+          by: ['programId'],
+          where: { programId: { in: enrolledProgramIds } },
+          _count: true
+        }),
+        req.prisma.progress.groupBy({
+          by: ['lesson'],
+          where: { userId, status: 'COMPLETED', lesson: { programId: { in: enrolledProgramIds } } },
+          _count: true
+        }).catch(() => []) // fallback if groupBy on relation fails
       ]);
 
-      // Derive completed programs: a program is completed when all its lessons are done
+      // Derive completed programs using grouped counts
       let completedProgramsCount = 0;
       if (enrolledProgramIds.length > 0) {
+        // Get completed count per program via a single query
+        const completedPerProgram = await req.prisma.$queryRaw`
+          SELECT l.program_id, COUNT(*)::int as completed
+          FROM progress p
+          JOIN lessons l ON l.id = p.lesson_id
+          WHERE p.user_id = ${userId} AND p.status = 'COMPLETED'
+          AND l.program_id = ANY(${enrolledProgramIds}::text[])
+          GROUP BY l.program_id
+        `;
+
+        const lessonCountMap = new Map(lessonsByProgram.map(g => [g.programId, g._count]));
+        const completedMap = new Map(completedPerProgram.map(r => [r.program_id, r.completed]));
+
         for (const programId of enrolledProgramIds) {
-          const programLessonCount = await req.prisma.lesson.count({ where: { programId } });
-          if (programLessonCount === 0) continue;
-          const completedInProgram = await req.prisma.progress.count({
-            where: { userId, status: 'COMPLETED', lesson: { programId } }
-          });
-          if (completedInProgram >= programLessonCount) {
+          const total = lessonCountMap.get(programId) || 0;
+          const completed = completedMap.get(programId) || 0;
+          if (total > 0 && completed >= total) {
             completedProgramsCount++;
           }
         }

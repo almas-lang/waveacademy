@@ -2,7 +2,15 @@
 const express = require('express');
 const router = express.Router();
 const { authenticate, requireAdmin } = require('../../middleware/auth');
-const { cacheGet, cacheInvalidate } = require('../../utils/cache');
+const { cacheGet, cacheDel } = require('../../utils/cache');
+
+// Clear program list cache (known key patterns only — avoids expensive SCAN)
+async function clearProgramsCache() {
+  await Promise.all([
+    cacheDel('programs:list:true:1:20'),
+    cacheDel('programs:list:undefined:1:20'),
+  ]);
+}
 
 // Apply auth to all routes
 router.use(authenticate);
@@ -103,7 +111,7 @@ router.post('/', async (req, res, next) => {
       }
     });
 
-    await cacheInvalidate('programs:');
+    await clearProgramsCache();
 
     res.status(201).json({
       success: true,
@@ -269,7 +277,7 @@ router.put('/:id', async (req, res, next) => {
       }
     });
 
-    await cacheInvalidate('programs:');
+    await clearProgramsCache();
 
     res.json({
       success: true,
@@ -294,7 +302,7 @@ router.post('/:id/publish', async (req, res, next) => {
       data: { isPublished }
     });
 
-    await cacheInvalidate('programs:');
+    await clearProgramsCache();
 
     res.json({
       success: true,
@@ -318,8 +326,7 @@ router.delete('/:id', async (req, res, next) => {
       where: { id }
     });
 
-    await cacheInvalidate('programs:');
-    await cacheInvalidate('learner:');
+    await clearProgramsCache();
 
     res.json({
       success: true,
@@ -484,8 +491,7 @@ router.post('/lessons', async (req, res, next) => {
       }
     })();
 
-    await cacheInvalidate('programs:');
-    await cacheInvalidate('learner:');
+    await clearProgramsCache();
 
     res.status(201).json({ success: true, data: { lesson } });
   } catch (error) {
@@ -503,8 +509,7 @@ router.put('/lessons/:id', async (req, res, next) => {
       data: { title, type, contentUrl, contentText, durationSeconds, orderIndex, instructorNotes, thumbnailUrl }
     });
 
-    await cacheInvalidate('programs:');
-    await cacheInvalidate('learner:');
+    await clearProgramsCache();
 
     res.json({ success: true, data: { lesson } });
   } catch (error) {
@@ -516,8 +521,7 @@ router.delete('/lessons/:id', async (req, res, next) => {
   try {
     const { id } = req.params;
     await req.prisma.lesson.delete({ where: { id } });
-    await cacheInvalidate('programs:');
-    await cacheInvalidate('learner:');
+    await clearProgramsCache();
     res.json({ success: true, message: 'Lesson deleted' });
   } catch (error) {
     next(error);

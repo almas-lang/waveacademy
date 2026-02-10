@@ -1,8 +1,10 @@
 // Authentication & Authorization Middleware
 const jwt = require('jsonwebtoken');
+const { cacheGet, cacheDel } = require('../utils/cache');
 
 /**
  * Verify JWT token and attach user to request
+ * Caches session+user in Redis (60s TTL) to avoid 2 DB queries per request
  */
 const authenticate = async (req, res, next) => {
   try {
@@ -16,61 +18,65 @@ const authenticate = async (req, res, next) => {
         error: { code: 'UNAUTHORIZED', message: 'No token provided' }
       });
     }
-    
+
     try {
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-      // Check if session exists and is valid
-      const session = await req.prisma.userSession.findUnique({
-        where: { token }
-      });
+      // Try to get session+user from cache to avoid 2 DB queries per request
+      const cacheKey = `auth:${token.slice(-16)}`;
+      const authData = await cacheGet(cacheKey, async () => {
+        const session = await req.prisma.userSession.findUnique({
+          where: { token }
+        });
 
-      if (!session || session.expiresAt < new Date()) {
-        // Session expired or was revoked
-        if (session) {
-          // Clean up expired session
-          await req.prisma.userSession.delete({ where: { id: session.id } }).catch(() => {});
+        if (!session || session.expiresAt < new Date()) {
+          if (session) {
+            await req.prisma.userSession.delete({ where: { id: session.id } }).catch(() => {});
+          }
+          return null;
         }
+
+        const user = await req.prisma.user.findUnique({
+          where: { id: decoded.userId },
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            role: true,
+            status: true
+          }
+        });
+
+        if (!user || user.status === 'INACTIVE') {
+          return null;
+        }
+
+        return { user, sessionId: session.id };
+      }, 60); // 60 second TTL — short enough to pick up status changes
+
+      if (!authData) {
         return res.status(401).json({
           success: false,
           error: { code: 'SESSION_EXPIRED', message: 'Session expired. Please login again.' }
         });
       }
 
-      // Update last active timestamp (don't await to not slow down requests)
-      req.prisma.userSession.update({
-        where: { id: session.id },
-        data: { lastActive: new Date() }
-      }).catch(() => {});
-
-      // Get fresh user data
-      const user = await req.prisma.user.findUnique({
-        where: { id: decoded.userId },
-        select: {
-          id: true,
-          email: true,
-          name: true,
-          role: true,
-          status: true
-        }
-      });
-
-      if (!user) {
-        return res.status(401).json({
-          success: false,
-          error: { code: 'UNAUTHORIZED', message: 'User not found' }
-        });
-      }
-
-      if (user.status === 'INACTIVE') {
+      if (authData.user.status === 'INACTIVE') {
         return res.status(403).json({
           success: false,
           error: { code: 'FORBIDDEN', message: 'Account is inactive' }
         });
       }
 
-      req.user = user;
-      req.sessionId = session.id;
+      req.user = authData.user;
+      req.sessionId = authData.sessionId;
+
+      // Update last active timestamp (fire-and-forget, at most once per cache TTL)
+      req.prisma.userSession.update({
+        where: { id: authData.sessionId },
+        data: { lastActive: new Date() }
+      }).catch(() => {});
+
       next();
     } catch (jwtError) {
       return res.status(401).json({

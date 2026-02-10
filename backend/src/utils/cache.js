@@ -1,5 +1,9 @@
 // Redis Cache Layer (Upstash)
 // Graceful fallback - if Redis is unavailable, requests hit the DB directly
+//
+// IMPORTANT: Upstash is pay-per-command (500K free/month).
+// NEVER use SCAN, KEYS, or pattern-based operations.
+// Always use direct cacheDel on known keys + short TTLs for expiration.
 
 const { Redis } = require('@upstash/redis');
 
@@ -42,36 +46,13 @@ async function cacheGet(key, computeFn, ttlSeconds = 300) {
   const value = await computeFn();
 
   try {
-    await redis.set(key, JSON.stringify(value), { ex: ttlSeconds });
+    // Upstash SDK auto-serializes — do NOT JSON.stringify manually
+    await redis.set(key, value, { ex: ttlSeconds });
   } catch (err) {
     console.error('Redis SET error:', err.message);
   }
 
   return value;
-}
-
-/**
- * Invalidate cache keys by pattern prefix
- * Use after mutations (create/update/delete)
- *
- * @param {string} prefix - Key prefix to invalidate (e.g., 'programs:')
- */
-async function cacheInvalidate(prefix) {
-  if (!redis) return;
-
-  try {
-    // Upstash supports SCAN for pattern matching
-    let cursor = 0;
-    do {
-      const [nextCursor, keys] = await redis.scan(cursor, { match: `${prefix}*`, count: 100 });
-      cursor = nextCursor;
-      if (keys.length > 0) {
-        await redis.del(...keys);
-      }
-    } while (cursor !== 0);
-  } catch (err) {
-    console.error('Redis invalidate error:', err.message);
-  }
 }
 
 /**
@@ -89,4 +70,4 @@ async function cacheDel(key) {
   }
 }
 
-module.exports = { cacheGet, cacheInvalidate, cacheDel, redis };
+module.exports = { cacheGet, cacheDel };
