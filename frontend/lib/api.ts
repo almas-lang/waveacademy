@@ -104,12 +104,12 @@ export const adminApi = {
     return response.data;
   },
 
-  createProgram: async (data: { name: string; description?: string; thumbnailUrl?: string }) => {
+  createProgram: async (data: { name: string; description?: string; thumbnailUrl?: string | null }) => {
     const response = await api.post('/admin/programs', data);
     return response.data;
   },
 
-  updateProgram: async (id: string, data: { name?: string; description?: string; thumbnailUrl?: string }) => {
+  updateProgram: async (id: string, data: { name?: string; description?: string; thumbnailUrl?: string | null }) => {
     const response = await api.put(`/admin/programs/${id}`, data);
     return response.data;
   },
