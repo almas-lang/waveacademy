@@ -306,8 +306,8 @@ export const adminApi = {
   uploadThumbnail: async (file: File) => {
     const formData = new FormData();
     formData.append('file', file);
-    const response = await api.post('/admin/upload/thumbnail', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
+    const response = await axios.post(`${API_URL}/admin/upload/thumbnail`, formData, {
+      withCredentials: true,
     });
     return response.data;
   },
@@ -315,8 +315,8 @@ export const adminApi = {
   uploadPdf: async (file: File) => {
     const formData = new FormData();
     formData.append('file', file);
-    const response = await api.post('/admin/upload/pdf', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
+    const response = await axios.post(`${API_URL}/admin/upload/pdf`, formData, {
+      withCredentials: true,
     });
     return response.data;
   },

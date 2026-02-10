@@ -3,6 +3,7 @@ const express = require('express');
 const router = express.Router();
 const { authenticate, requireAdmin } = require('../../middleware/auth');
 const { cacheGet, cacheDel } = require('../../utils/cache');
+const { deleteR2File, deleteR2Files } = require('../../utils/r2');
 
 // Clear program list cache (known key patterns only — avoids expensive SCAN)
 async function clearProgramsCache() {
@@ -322,9 +323,34 @@ router.delete('/:id', async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    await req.prisma.program.delete({
-      where: { id }
+    // Collect R2 file URLs before deletion (thumbnails, PDFs, attachments)
+    const program = await req.prisma.program.findUnique({
+      where: { id },
+      select: {
+        thumbnailUrl: true,
+        lessons: {
+          select: {
+            contentUrl: true,
+            thumbnailUrl: true,
+            type: true,
+            attachments: { select: { fileUrl: true } }
+          }
+        }
+      }
     });
+
+    await req.prisma.program.delete({ where: { id } });
+
+    // Clean up R2 files in background (fire-and-forget)
+    if (program) {
+      const urls = [program.thumbnailUrl];
+      for (const lesson of program.lessons) {
+        if (lesson.thumbnailUrl) urls.push(lesson.thumbnailUrl);
+        if (lesson.type === 'PDF' && lesson.contentUrl) urls.push(lesson.contentUrl);
+        for (const att of lesson.attachments) urls.push(att.fileUrl);
+      }
+      deleteR2Files(urls).catch(() => {});
+    }
 
     await clearProgramsCache();
 
@@ -520,7 +546,26 @@ router.put('/lessons/:id', async (req, res, next) => {
 router.delete('/lessons/:id', async (req, res, next) => {
   try {
     const { id } = req.params;
+
+    // Collect R2 URLs before deletion
+    const lesson = await req.prisma.lesson.findUnique({
+      where: { id },
+      select: {
+        contentUrl: true, thumbnailUrl: true, type: true,
+        attachments: { select: { fileUrl: true } }
+      }
+    });
+
     await req.prisma.lesson.delete({ where: { id } });
+
+    // Clean up R2 files
+    if (lesson) {
+      const urls = [lesson.thumbnailUrl];
+      if (lesson.type === 'PDF' && lesson.contentUrl) urls.push(lesson.contentUrl);
+      for (const att of lesson.attachments) urls.push(att.fileUrl);
+      deleteR2Files(urls).catch(() => {});
+    }
+
     await clearProgramsCache();
     res.json({ success: true, message: 'Lesson deleted' });
   } catch (error) {
@@ -675,7 +720,20 @@ router.post('/lessons/:id/attachments', async (req, res, next) => {
 router.delete('/attachments/:id', async (req, res, next) => {
   try {
     const { id } = req.params;
+
+    // Get URL before deletion
+    const attachment = await req.prisma.lessonAttachment.findUnique({
+      where: { id },
+      select: { fileUrl: true }
+    });
+
     await req.prisma.lessonAttachment.delete({ where: { id } });
+
+    // Clean up R2 file
+    if (attachment?.fileUrl) {
+      deleteR2File(attachment.fileUrl).catch(() => {});
+    }
+
     res.json({ success: true, message: 'Attachment deleted' });
   } catch (error) {
     next(error);

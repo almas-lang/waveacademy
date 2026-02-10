@@ -272,7 +272,7 @@ router.get('/lessons/:id', async (req, res, next) => {
     const lesson = await req.prisma.lesson.findUnique({
       where: { id },
       include: {
-        program: true,
+        program: { select: { id: true, name: true } },
         attachments: true
       }
     });

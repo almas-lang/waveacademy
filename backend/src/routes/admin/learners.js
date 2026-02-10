@@ -183,13 +183,6 @@ router.get('/:id', async (req, res, next) => {
               }
             }
           }
-        },
-        progress: {
-          include: {
-            lesson: {
-              select: { title: true, type: true, programId: true }
-            }
-          }
         }
       }
     });
@@ -201,12 +194,42 @@ router.get('/:id', async (req, res, next) => {
       });
     }
 
+    // Get completed counts per program and recent progress in parallel
+    const enrolledProgramIds = learner.enrollments.map(e => e.programId);
+    const [completedByProgram, recentProgress] = await Promise.all([
+      req.prisma.progress.groupBy({
+        by: ['lessonId'],
+        where: {
+          userId: id,
+          status: 'COMPLETED',
+          lesson: { programId: { in: enrolledProgramIds } }
+        }
+      }).then(async (results) => {
+        // Get programId for each completed lesson
+        if (results.length === 0) return new Map();
+        const lessons = await req.prisma.lesson.findMany({
+          where: { id: { in: results.map(r => r.lessonId) } },
+          select: { id: true, programId: true }
+        });
+        const counts = new Map();
+        for (const lesson of lessons) {
+          counts.set(lesson.programId, (counts.get(lesson.programId) || 0) + 1);
+        }
+        return counts;
+      }),
+      req.prisma.progress.findMany({
+        where: { userId: id },
+        include: {
+          lesson: { select: { title: true, type: true, programId: true } }
+        },
+        orderBy: { lastAccessedAt: 'desc' },
+        take: 10
+      })
+    ]);
+
     // Calculate progress per program
     const programProgress = learner.enrollments.map(enrollment => {
-      const programLessons = learner.progress.filter(
-        p => p.lesson.programId === enrollment.programId
-      );
-      const completedCount = programLessons.filter(p => p.status === 'COMPLETED').length;
+      const completedCount = completedByProgram.get(enrollment.programId) || 0;
       const totalLessons = enrollment.program._count.lessons;
 
       return {
@@ -231,15 +254,12 @@ router.get('/:id', async (req, res, next) => {
           createdAt: learner.createdAt
         },
         programProgress,
-        recentProgress: learner.progress
-          .sort((a, b) => new Date(b.lastAccessedAt) - new Date(a.lastAccessedAt))
-          .slice(0, 10)
-          .map(p => ({
-            lessonId: p.lessonId,
-            lessonTitle: p.lesson.title,
-            status: p.status,
-            lastAccessed: p.lastAccessedAt
-          }))
+        recentProgress: recentProgress.map(p => ({
+          lessonId: p.lessonId,
+          lessonTitle: p.lesson.title,
+          status: p.status,
+          lastAccessed: p.lastAccessedAt
+        }))
       }
     });
   } catch (error) {

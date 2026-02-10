@@ -61,6 +61,7 @@ const generalLimiter = rateLimit({
 // Middleware
 const allowedOrigins = [
   'http://localhost:3000',
+  'http://localhost:3002',
   'http://localhost:3003',
   'https://learn.xperiencewave.com',
   process.env.FRONTEND_URL
@@ -128,10 +129,33 @@ app.use((req, res) => {
   });
 });
 
+// Periodic cleanup: expired login sessions + old notifications
+async function runCleanup() {
+  try {
+    const [expiredSessions, oldNotifications] = await Promise.all([
+      prisma.userSession.deleteMany({
+        where: { expiresAt: { lt: new Date() } }
+      }),
+      prisma.notification.deleteMany({
+        where: { createdAt: { lt: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000) } } // 90 days
+      })
+    ]);
+    if (expiredSessions.count > 0 || oldNotifications.count > 0) {
+      console.log(`🧹 Cleanup: removed ${expiredSessions.count} expired sessions, ${oldNotifications.count} old notifications`);
+    }
+  } catch (err) {
+    console.error('Cleanup error:', err.message);
+  }
+}
+
 // Start server
 app.listen(PORT, () => {
   console.log(`🚀 LMS Backend running on port ${PORT}`);
   console.log(`📚 Environment: ${process.env.NODE_ENV || 'development'}`);
+
+  // Run cleanup on startup and every 24 hours
+  runCleanup();
+  setInterval(runCleanup, 24 * 60 * 60 * 1000);
 });
 
 // Graceful shutdown

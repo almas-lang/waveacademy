@@ -1,5 +1,6 @@
 'use client';
 
+import { useRef, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { learnerApi } from '@/lib/api';
 import {
@@ -91,21 +92,49 @@ export function useLearnerProfile() {
   });
 }
 
-// Update lesson progress (watch position)
+// Update lesson progress (watch position) — throttled to at most once per 30s
 export function useUpdateLessonProgress() {
-  const queryClient = useQueryClient();
+  const lastSentRef = useRef<number>(0);
+  const pendingRef = useRef<{ lessonId: string; watchPositionSeconds: number } | null>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  return useMutation({
+  const mutation = useMutation({
     mutationFn: ({ lessonId, watchPositionSeconds }: { lessonId: string; watchPositionSeconds: number }) =>
       learnerApi.updateProgress(lessonId, watchPositionSeconds),
-    onSuccess: (_, { lessonId }) => {
-      // Don't invalidate to avoid refetching during video playback
-      // The progress is saved server-side
+    onSuccess: () => {
+      lastSentRef.current = Date.now();
     },
     onError: (error: any) => {
       console.error('Failed to update progress:', error);
     },
   });
+
+  const throttledMutate = useCallback(
+    (data: { lessonId: string; watchPositionSeconds: number }) => {
+      pendingRef.current = data;
+      const elapsed = Date.now() - lastSentRef.current;
+
+      if (elapsed >= 30000) {
+        // Enough time passed — send immediately
+        mutation.mutate(data);
+        pendingRef.current = null;
+        if (timerRef.current) clearTimeout(timerRef.current);
+        timerRef.current = null;
+      } else if (!timerRef.current) {
+        // Schedule a send for when the throttle window expires
+        timerRef.current = setTimeout(() => {
+          if (pendingRef.current) {
+            mutation.mutate(pendingRef.current);
+            pendingRef.current = null;
+          }
+          timerRef.current = null;
+        }, 30000 - elapsed);
+      }
+    },
+    [mutation]
+  );
+
+  return { ...mutation, mutate: throttledMutate };
 }
 
 // Mark lesson as complete

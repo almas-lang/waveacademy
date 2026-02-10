@@ -12,7 +12,8 @@ router.use(requireAdmin);
  */
 router.get('/', async (req, res, next) => {
   try {
-    const { from, to, programId } = req.query;
+    const { from, to, programId, page = 1, limit = 50 } = req.query;
+    const skip = (parseInt(page) - 1) * parseInt(limit);
 
     const where = {};
 
@@ -28,17 +29,22 @@ router.get('/', async (req, res, next) => {
       };
     }
 
-    const sessions = await req.prisma.session.findMany({
-      where,
-      include: {
-        sessionPrograms: {
-          include: {
-            program: { select: { name: true } }
+    const [sessions, total] = await Promise.all([
+      req.prisma.session.findMany({
+        where,
+        include: {
+          sessionPrograms: {
+            include: {
+              program: { select: { name: true } }
+            }
           }
-        }
-      },
-      orderBy: { startTime: 'asc' }
-    });
+        },
+        orderBy: { startTime: 'asc' },
+        skip,
+        take: parseInt(limit)
+      }),
+      req.prisma.session.count({ where })
+    ]);
 
     const formattedSessions = sessions.map(session => ({
       id: session.id,
@@ -49,14 +55,22 @@ router.get('/', async (req, res, next) => {
       meetLink: session.meetLink,
       isRecurring: session.isRecurring,
       recurrenceRule: session.recurrenceRule,
-      programs: session.sessionPrograms.length === 0 
+      programs: session.sessionPrograms.length === 0
         ? ['All Programs']
         : session.sessionPrograms.map(sp => sp.program?.name || 'All Programs')
     }));
 
     res.json({
       success: true,
-      data: { sessions: formattedSessions }
+      data: {
+        sessions: formattedSessions,
+        pagination: {
+          total,
+          page: parseInt(page),
+          limit: parseInt(limit),
+          totalPages: Math.ceil(total / parseInt(limit))
+        }
+      }
     });
   } catch (error) {
     next(error);
@@ -116,18 +130,18 @@ router.post('/', async (req, res, next) => {
         let enrolledUsers;
 
         if (programIds.length === 0) {
-          // Session for all programs - notify all enrolled learners
+          // Session for all programs - notify all active enrolled learners
           enrolledUsers = await prisma.enrollment.findMany({
-            where: { status: 'ACTIVE' },
+            where: { user: { status: 'ACTIVE' } },
             select: { userId: true, programId: true },
             distinct: ['userId']
           });
         } else {
-          // Session for specific programs - notify learners enrolled in those programs
+          // Session for specific programs - notify active learners enrolled in those programs
           enrolledUsers = await prisma.enrollment.findMany({
             where: {
               programId: { in: programIds },
-              status: 'ACTIVE'
+              user: { status: 'ACTIVE' }
             },
             select: { userId: true, programId: true },
             distinct: ['userId']
@@ -265,18 +279,26 @@ router.put('/:id', async (req, res, next) => {
       });
     }
 
-    // Send notifications about session update (async, don't block response)
+    // Only notify when significant fields change (time or meeting link)
+    const startChanged = startTime !== undefined && new Date(startTime).getTime() !== oldSession.startTime.getTime();
+    const endChanged = endTime !== undefined && (
+      (endTime && oldSession.endTime && new Date(endTime).getTime() !== oldSession.endTime.getTime()) ||
+      (endTime && !oldSession.endTime) || (!endTime && oldSession.endTime)
+    );
+    const linkChanged = meetLink !== undefined && meetLink !== oldSession.meetLink;
+    const shouldNotify = startChanged || endChanged || linkChanged;
+
     const prisma = req.prisma;
     const finalProgramIds = programIds !== undefined ? programIds : oldSession.sessionPrograms.map(sp => sp.programId).filter(Boolean);
 
-    (async () => {
+    if (shouldNotify) (async () => {
       try {
         let enrolledUsers;
 
         if (finalProgramIds.length === 0) {
           // Session for all programs
           enrolledUsers = await prisma.enrollment.findMany({
-            where: { status: 'ACTIVE' },
+            where: { user: { status: 'ACTIVE' } },
             select: { userId: true, programId: true },
             distinct: ['userId']
           });
@@ -285,7 +307,7 @@ router.put('/:id', async (req, res, next) => {
           enrolledUsers = await prisma.enrollment.findMany({
             where: {
               programId: { in: finalProgramIds },
-              status: 'ACTIVE'
+              user: { status: 'ACTIVE' }
             },
             select: { userId: true, programId: true },
             distinct: ['userId']
@@ -336,6 +358,7 @@ router.put('/:id', async (req, res, next) => {
   }
 });
 
+
 /**
  * DELETE /admin/sessions/:id
  * Delete session
@@ -375,7 +398,7 @@ router.delete('/:id', async (req, res, next) => {
         if (programIds.length === 0) {
           // Session was for all programs
           enrolledUsers = await prisma.enrollment.findMany({
-            where: { status: 'ACTIVE' },
+            where: { user: { status: 'ACTIVE' } },
             select: { userId: true, programId: true },
             distinct: ['userId']
           });
@@ -384,7 +407,7 @@ router.delete('/:id', async (req, res, next) => {
           enrolledUsers = await prisma.enrollment.findMany({
             where: {
               programId: { in: programIds },
-              status: 'ACTIVE'
+              user: { status: 'ACTIVE' }
             },
             select: { userId: true, programId: true },
             distinct: ['userId']
