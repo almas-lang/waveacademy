@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import {
   DndContext,
   DragOverlay,
@@ -208,6 +208,15 @@ function SortableItem({
             <span className="text-slate-700 font-medium">{item.title}</span>
             <div className="flex items-center gap-2 mt-0.5">
               <Badge variant="neutral" size="sm">{item.lessonType}</Badge>
+              {item.lessonType === 'VIDEO' && !item.contentUrl && (
+                <Badge variant="warning" size="sm">No video</Badge>
+              )}
+              {item.lessonType === 'PDF' && !item.contentUrl && (
+                <Badge variant="warning" size="sm">No PDF</Badge>
+              )}
+              {item.lessonType === 'TEXT' && !item.contentText && (
+                <Badge variant="warning" size="sm">No content</Badge>
+              )}
               {item.durationSeconds && (
                 <span className="text-xs text-slate-400">
                   {item.lessonType === 'VIDEO' ? (
@@ -469,6 +478,15 @@ export default function ContentTree({ programId, content, onRefresh }: ContentTr
   const collapseAll = () => {
     setExpandedItems(new Set());
   };
+
+  // Auto-expand tree on initial load
+  const hasInitialized = useRef(false);
+  useEffect(() => {
+    if (content.length > 0 && !hasInitialized.current) {
+      hasInitialized.current = true;
+      expandAll();
+    }
+  }, [content]);
 
   const resetLessonForm = () => {
     setLessonTitle('');
@@ -1083,7 +1101,7 @@ export default function ContentTree({ programId, content, onRefresh }: ContentTr
                 <button
                   key={type}
                   type="button"
-                  onClick={() => setLessonType(type)}
+                  onClick={() => { setLessonType(type); setLessonDuration(''); }}
                   className={clsx(
                     'flex flex-col items-center gap-1.5 p-3 rounded-lg border-2 transition-all',
                     lessonType === type
@@ -1329,6 +1347,16 @@ export default function ContentTree({ programId, content, onRefresh }: ContentTr
         size="lg"
       >
         <div className="space-y-5">
+          {editingLesson?.parentId && (() => {
+            const parent = flattenedItems.find(item => item.id === editingLesson.parentId);
+            return parent ? (
+              <div className="px-3 py-2 bg-slate-50 rounded-lg border border-slate-200">
+                <span className="text-sm text-slate-500">Editing lesson in: </span>
+                <span className="text-sm font-medium text-slate-700">{parent.name}</span>
+              </div>
+            ) : null;
+          })()}
+
           <Input
             label="Lesson Title"
             value={lessonTitle}
@@ -1340,14 +1368,14 @@ export default function ContentTree({ programId, content, onRefresh }: ContentTr
             <label className="block text-sm font-medium text-slate-700 mb-2">Lesson Type</label>
             <div className="grid grid-cols-3 gap-2">
               {[
-                { type: 'VIDEO' as LessonType, icon: Video, label: 'Video' },
-                { type: 'PDF' as LessonType, icon: FileType, label: 'PDF' },
-                { type: 'TEXT' as LessonType, icon: Type, label: 'Text' },
-              ].map(({ type, icon: Icon, label }) => (
+                { type: 'VIDEO' as LessonType, icon: Video, label: 'Video', desc: 'Bunny.net video' },
+                { type: 'PDF' as LessonType, icon: FileType, label: 'PDF', desc: 'Document' },
+                { type: 'TEXT' as LessonType, icon: Type, label: 'Text', desc: 'Rich text' },
+              ].map(({ type, icon: Icon, label, desc }) => (
                 <button
                   key={type}
                   type="button"
-                  onClick={() => setLessonType(type)}
+                  onClick={() => { setLessonType(type); setLessonDuration(''); }}
                   className={clsx(
                     'flex flex-col items-center gap-1.5 p-3 rounded-lg border-2 transition-all',
                     lessonType === type
@@ -1357,6 +1385,7 @@ export default function ContentTree({ programId, content, onRefresh }: ContentTr
                 >
                   <Icon className="w-5 h-5" />
                   <span className="text-sm font-medium">{label}</span>
+                  <span className="text-xs text-slate-400">{desc}</span>
                 </button>
               ))}
             </div>
@@ -1364,27 +1393,80 @@ export default function ContentTree({ programId, content, onRefresh }: ContentTr
 
           {lessonType === 'VIDEO' && (
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Video URL</label>
-              <input
-                type="url"
-                value={lessonVideoUrl}
-                onChange={(e) => setLessonVideoUrl(e.target.value)}
-                placeholder="https://iframe.mediadelivery.net/play/..."
-                className="input"
-              />
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                Video URL <span className="text-slate-400 font-normal">(Bunny.net embed URL)</span>
+              </label>
+              <div className="relative">
+                <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <input
+                  type="url"
+                  value={lessonVideoUrl}
+                  onChange={(e) => setLessonVideoUrl(e.target.value)}
+                  placeholder="https://iframe.mediadelivery.net/embed/..."
+                  className="input pl-10"
+                />
+              </div>
+              <p className="text-xs text-slate-500 mt-1">
+                Paste the embed URL from your Bunny.net video library
+              </p>
             </div>
           )}
 
           {lessonType === 'PDF' && (
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">PDF URL</label>
-              <input
-                type="url"
-                value={lessonPdfUrl}
-                onChange={(e) => setLessonPdfUrl(e.target.value)}
-                placeholder="https://..."
-                className="input"
-              />
+              <label className="block text-sm font-medium text-slate-700 mb-2">PDF Document</label>
+              {lessonPdfUrl ? (
+                <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg border border-slate-200">
+                  <FileType className="w-8 h-8 text-red-500" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-slate-700 truncate">PDF uploaded</p>
+                    <p className="text-xs text-slate-500 truncate">{lessonPdfUrl}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setLessonPdfUrl('')}
+                    className="p-1 text-slate-400 hover:text-red-500"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              ) : (
+                <div className="flex gap-3">
+                  <label className={clsx(
+                    'flex-1 flex flex-col items-center justify-center py-6 border-2 border-dashed rounded-lg cursor-pointer transition-colors',
+                    uploadingPdf ? 'border-slate-300 bg-slate-50' : 'border-slate-300 hover:border-accent-500'
+                  )}>
+                    {uploadingPdf ? (
+                      <div className="flex items-center gap-2">
+                        <div className="w-5 h-5 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />
+                        <span className="text-sm text-slate-500">Uploading...</span>
+                      </div>
+                    ) : (
+                      <>
+                        <Upload className="w-6 h-6 text-slate-400 mb-1" />
+                        <span className="text-sm text-slate-500">Upload PDF</span>
+                      </>
+                    )}
+                    <input
+                      type="file"
+                      accept="application/pdf"
+                      onChange={handlePdfUpload}
+                      className="hidden"
+                      disabled={uploadingPdf}
+                    />
+                  </label>
+                  <div className="flex-1">
+                    <label className="block text-xs text-slate-500 mb-1">Or paste URL</label>
+                    <input
+                      type="url"
+                      value={lessonPdfUrl}
+                      onChange={(e) => setLessonPdfUrl(e.target.value)}
+                      placeholder="https://..."
+                      className="input text-sm"
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -1394,24 +1476,98 @@ export default function ContentTree({ programId, content, onRefresh }: ContentTr
               <textarea
                 value={lessonText}
                 onChange={(e) => setLessonText(e.target.value)}
-                placeholder="Enter your lesson content..."
-                rows={4}
+                placeholder="Enter your lesson content here..."
+                rows={6}
                 className="input resize-none"
               />
+              <p className="text-xs text-slate-500 mt-1">HTML is supported for basic formatting</p>
             </div>
           )}
 
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">
-              {lessonType === 'VIDEO' ? 'Duration (HH:MM:SS)' : 'Est. Reading Time (minutes)'}
-            </label>
-            <input
-              type="text"
-              value={lessonDuration}
-              onChange={(e) => setLessonDuration(e.target.value)}
-              placeholder={lessonType === 'VIDEO' ? '01:30:00' : '10'}
-              className="input"
-            />
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              {lessonType === 'VIDEO' ? (
+                <>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    Duration <span className="text-slate-400 font-normal">(HH:MM:SS)</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={lessonDuration}
+                    onChange={(e) => setLessonDuration(e.target.value)}
+                    placeholder="e.g., 01:30:00 or 15:30"
+                    className="input"
+                  />
+                  <p className="text-xs text-slate-500 mt-1">Format: hours:minutes:seconds</p>
+                </>
+              ) : lessonType === 'PDF' ? (
+                <>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    Est. Reading Time <span className="text-slate-400 font-normal">(minutes)</span>
+                  </label>
+                  <input
+                    type="number"
+                    value={lessonDuration}
+                    onChange={(e) => setLessonDuration(e.target.value)}
+                    placeholder="e.g., 10"
+                    className="input"
+                    min="1"
+                  />
+                  <p className="text-xs text-slate-500 mt-1">Estimated time to read the document</p>
+                </>
+              ) : (
+                <>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    Est. Reading Time <span className="text-slate-400 font-normal">(minutes)</span>
+                  </label>
+                  <input
+                    type="number"
+                    value={lessonDuration}
+                    onChange={(e) => setLessonDuration(e.target.value)}
+                    placeholder="e.g., 5"
+                    className="input"
+                    min="1"
+                  />
+                  <p className="text-xs text-slate-500 mt-1">Estimated time to read the content</p>
+                </>
+              )}
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                Thumbnail <span className="text-slate-400 font-normal">(optional)</span>
+              </label>
+              {lessonThumbnail ? (
+                <div className="relative inline-block">
+                  <img src={lessonThumbnail} alt="Thumbnail" className="h-10 w-16 object-cover rounded" />
+                  <button
+                    type="button"
+                    onClick={() => setLessonThumbnail('')}
+                    className="absolute -top-1 -right-1 p-0.5 bg-red-500 text-white rounded-full"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              ) : (
+                <label className={clsx(
+                  'inline-flex items-center gap-2 px-3 py-2 border border-slate-300 rounded-lg cursor-pointer hover:bg-slate-50 transition-colors',
+                  uploadingThumbnail && 'opacity-50 cursor-not-allowed'
+                )}>
+                  {uploadingThumbnail ? (
+                    <div className="w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <Image className="w-4 h-4 text-slate-400" />
+                  )}
+                  <span className="text-sm text-slate-600">Upload</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleThumbnailUpload}
+                    className="hidden"
+                    disabled={uploadingThumbnail}
+                  />
+                </label>
+              )}
+            </div>
           </div>
 
           <div>
@@ -1422,7 +1578,7 @@ export default function ContentTree({ programId, content, onRefresh }: ContentTr
               value={lessonNotes}
               onChange={(e) => setLessonNotes(e.target.value)}
               placeholder="Any additional notes or instructions for learners..."
-              rows={3}
+              rows={2}
               className="input resize-none"
             />
           </div>

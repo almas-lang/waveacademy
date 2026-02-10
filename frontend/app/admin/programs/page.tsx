@@ -1,16 +1,18 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { Plus, BookOpen, Eye, Edit, Trash2, Globe, Lock } from 'lucide-react';
 import { AdminHeader } from '@/components/admin';
 import ProgramModal from '@/components/admin/ProgramModal';
-import { Button, Badge, Table, PageLoading, EmptyState, Modal, Pagination, DropdownMenu, DropdownItem, DropdownDivider } from '@/components/ui';
+import { Button, Badge, Table, EmptyState, Modal, Pagination, DropdownMenu, DropdownItem, DropdownDivider, InlineLoading } from '@/components/ui';
 import { useProgramsPaginated, useDeleteProgram, useTogglePublish } from '@/hooks';
 import { Program } from '@/types/admin';
 import { format } from 'date-fns';
 
 export default function ProgramsPage() {
+  const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [editingProgram, setEditingProgram] = useState<Program | null>(null);
@@ -30,15 +32,24 @@ export default function ProgramsPage() {
 
   const handleDelete = async () => {
     if (!deletingProgram) return;
-    await deleteProgram.mutateAsync(deletingProgram.id);
-    setDeletingProgram(null);
+    try {
+      await deleteProgram.mutateAsync(deletingProgram.id);
+    } catch {
+      // Error handled by mutation onError
+    } finally {
+      setDeletingProgram(null);
+    }
   };
 
   const handleTogglePublish = async (program: Program) => {
-    await togglePublish.mutateAsync({
-      id: program.id,
-      isPublished: !program.isPublished,
-    });
+    try {
+      await togglePublish.mutateAsync({
+        id: program.id,
+        isPublished: !program.isPublished,
+      });
+    } catch {
+      // Error handled by mutation onError
+    }
   };
 
   const closeModal = () => {
@@ -173,7 +184,9 @@ export default function ProgramsPage() {
         {/* Programs Table */}
         <div className="bg-white rounded-xl border border-slate-200/80 shadow-soft overflow-hidden">
           {isLoading ? (
-            <PageLoading />
+            <div className="flex items-center justify-center py-16">
+              <InlineLoading text="Loading programs..." />
+            </div>
           ) : (
             <>
               <Table
@@ -181,7 +194,7 @@ export default function ProgramsPage() {
                 data={programs || []}
                 rowKey={(program) => program.id}
                 onRowClick={(program) => {
-                  window.location.href = `/admin/programs/${program.id}`;
+                  router.push(`/admin/programs/${program.id}`);
                 }}
                 emptyState={{
                   title: 'No programs yet',

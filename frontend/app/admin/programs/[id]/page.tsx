@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -23,7 +23,7 @@ import {
 import { AdminHeader } from '@/components/admin';
 import ProgramModal from '@/components/admin/ProgramModal';
 import ContentTree from '@/components/admin/ContentTree';
-import { Button, Badge, PageLoading, Modal } from '@/components/ui';
+import { Button, Badge, PageLoading, Modal, LoadingSpinner, Input } from '@/components/ui';
 import { useProgram, useTogglePublish, useDeleteProgram, useProgramLearners, useLearners, useEnrollLearner, useUnenrollLearner } from '@/hooks';
 import { ContentItem, Learner } from '@/types/admin';
 
@@ -37,11 +37,19 @@ export default function ProgramDetailPage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showAddLearnerModal, setShowAddLearnerModal] = useState(false);
   const [learnerSearchQuery, setLearnerSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [learnerToRemove, setLearnerToRemove] = useState<Learner | null>(null);
+  const [enrollingLearnerId, setEnrollingLearnerId] = useState<string | null>(null);
+
+  // Debounce learner search
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(learnerSearchQuery), 300);
+    return () => clearTimeout(timer);
+  }, [learnerSearchQuery]);
 
   const { data, isLoading, refetch } = useProgram(programId);
   const { data: programLearners, isLoading: learnersLoading, refetch: refetchLearners } = useProgramLearners(programId);
-  const { data: allLearnersData } = useLearners({ search: learnerSearchQuery });
+  const { data: allLearnersData } = useLearners({ search: debouncedSearch });
   const enrollLearner = useEnrollLearner();
   const unenrollLearner = useUnenrollLearner();
   const togglePublish = useTogglePublish();
@@ -55,15 +63,27 @@ export default function ProgramDetailPage() {
   }, [allLearnersData?.learners, programLearners]);
 
   const handleEnrollLearner = async (learnerId: string) => {
-    await enrollLearner.mutateAsync({ learnerId, programId });
-    refetchLearners();
+    setEnrollingLearnerId(learnerId);
+    try {
+      await enrollLearner.mutateAsync({ learnerId, programId });
+      refetchLearners();
+    } catch {
+      // Error handled by mutation onError
+    } finally {
+      setEnrollingLearnerId(null);
+    }
   };
 
   const handleUnenrollLearner = async () => {
     if (!learnerToRemove) return;
-    await unenrollLearner.mutateAsync({ learnerId: learnerToRemove.id, programId });
-    setLearnerToRemove(null);
-    refetchLearners();
+    try {
+      await unenrollLearner.mutateAsync({ learnerId: learnerToRemove.id, programId });
+      refetchLearners();
+    } catch {
+      // Error handled by mutation onError
+    } finally {
+      setLearnerToRemove(null);
+    }
   };
 
   if (isLoading) {
@@ -100,16 +120,24 @@ export default function ProgramDetailPage() {
   const { program, content } = data;
 
   const handleTogglePublish = async () => {
-    await togglePublish.mutateAsync({
-      id: program.id,
-      isPublished: !program.isPublished,
-    });
-    refetch();
+    try {
+      await togglePublish.mutateAsync({
+        id: program.id,
+        isPublished: !program.isPublished,
+      });
+      refetch();
+    } catch {
+      // Error handled by mutation onError
+    }
   };
 
   const handleDelete = async () => {
-    await deleteProgram.mutateAsync(program.id);
-    router.push('/admin/programs');
+    try {
+      await deleteProgram.mutateAsync(program.id);
+      router.push('/admin/programs');
+    } catch {
+      // Error handled by mutation onError
+    }
   };
 
   // Calculate stats from content tree
@@ -276,7 +304,7 @@ export default function ProgramDetailPage() {
 
           {learnersLoading ? (
             <div className="flex items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600"></div>
+              <LoadingSpinner size="md" />
             </div>
           ) : programLearners?.length === 0 ? (
             <div className="text-center py-12 border-2 border-dashed border-slate-200 rounded-xl">
@@ -394,24 +422,20 @@ export default function ProgramDetailPage() {
         size="md"
       >
         <div className="mb-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-            <input
-              type="text"
-              placeholder="Search by name or email..."
-              value={learnerSearchQuery}
-              onChange={(e) => setLearnerSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500"
-            />
-            {learnerSearchQuery && (
+          <Input
+            placeholder="Search by name or email..."
+            value={learnerSearchQuery}
+            onChange={(e) => setLearnerSearchQuery(e.target.value)}
+            leftIcon={<Search className="w-4 h-4" />}
+            rightIcon={learnerSearchQuery ? (
               <button
                 onClick={() => setLearnerSearchQuery('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                className="text-slate-400 hover:text-slate-600"
               >
                 <X className="w-4 h-4" />
               </button>
-            )}
-          </div>
+            ) : undefined}
+          />
         </div>
 
         <div className="max-h-80 overflow-y-auto">
@@ -448,7 +472,8 @@ export default function ProgramDetailPage() {
                     variant="outline"
                     size="sm"
                     onClick={() => handleEnrollLearner(learner.id)}
-                    isLoading={enrollLearner.isPending}
+                    isLoading={enrollingLearnerId === learner.id}
+                    disabled={enrollingLearnerId !== null}
                     leftIcon={<UserPlus className="w-4 h-4" />}
                   >
                     Add
