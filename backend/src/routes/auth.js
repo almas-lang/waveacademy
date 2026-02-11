@@ -410,6 +410,15 @@ router.post('/reset-password', async (req, res, next) => {
       });
     }
 
+    // Check new password is not the same as the old one
+    const isSamePassword = await bcrypt.compare(password, user.passwordHash);
+    if (isSamePassword) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'VALIDATION_ERROR', message: 'New password must be different from your current password' }
+      });
+    }
+
     // Hash password and update user
     const passwordHash = await bcrypt.hash(password, 12);
     

@@ -4,6 +4,7 @@ const router = express.Router();
 const crypto = require('crypto');
 const { authenticate, requireLearner } = require('../middleware/auth');
 const { cacheGet, cacheDel } = require('../utils/cache');
+const { expandRecurringSession } = require('../utils/recurrence');
 
 router.use(authenticate);
 router.use(requireLearner);
@@ -18,9 +19,9 @@ router.get('/home', async (req, res, next) => {
     const cacheKey = `learner:home:${userId}`;
 
     const data = await cacheGet(cacheKey, async () => {
-      // Get enrollments with progress
+      // Get enrollments with progress (only published programs)
       const enrollments = await req.prisma.enrollment.findMany({
-        where: { userId },
+        where: { userId, program: { isPublished: true } },
         include: {
           program: {
             include: {
@@ -170,7 +171,7 @@ router.get('/programs/:id', async (req, res, next) => {
       }
     });
 
-    if (!program) {
+    if (!program || !program.isPublished) {
       return res.status(404).json({
         success: false,
         error: { code: 'NOT_FOUND', message: 'Program not found' }
@@ -329,12 +330,55 @@ router.get('/lessons/:id', async (req, res, next) => {
       contentUrl = generateSignedVideoUrl(contentUrl);
     }
 
-    // Get navigation (prev/next lessons)
-    const programLessons = await req.prisma.lesson.findMany({
-      where: { programId: lesson.programId },
-      orderBy: [{ topicId: 'asc' }, { subtopicId: 'asc' }, { orderIndex: 'asc' }],
-      select: { id: true, title: true }
+    // Get navigation - build flat lesson list matching the content tree order
+    const programWithTree = await req.prisma.program.findUnique({
+      where: { id: lesson.programId },
+      include: {
+        topics: {
+          include: {
+            subtopics: {
+              include: {
+                lessons: { orderBy: { orderIndex: 'asc' }, select: { id: true, title: true, orderIndex: true } }
+              },
+              orderBy: { orderIndex: 'asc' }
+            },
+            lessons: {
+              where: { subtopicId: null },
+              orderBy: { orderIndex: 'asc' },
+              select: { id: true, title: true, orderIndex: true }
+            }
+          },
+          orderBy: { orderIndex: 'asc' }
+        },
+        lessons: {
+          where: { topicId: null, subtopicId: null },
+          orderBy: { orderIndex: 'asc' },
+          select: { id: true, title: true, orderIndex: true }
+        }
+      }
     });
+
+    // Flatten in the same order the content tree renders
+    const programLessons = [];
+    if (programWithTree) {
+      for (const topic of programWithTree.topics) {
+        // Interleave subtopics and direct lessons by orderIndex
+        const children = [
+          ...topic.subtopics.map(s => ({ type: 'subtopic', orderIndex: s.orderIndex, lessons: s.lessons })),
+          ...topic.lessons.map(l => ({ type: 'lesson', orderIndex: l.orderIndex, lesson: l }))
+        ].sort((a, b) => a.orderIndex - b.orderIndex);
+
+        for (const child of children) {
+          if (child.type === 'subtopic') {
+            programLessons.push(...child.lessons);
+          } else {
+            programLessons.push(child.lesson);
+          }
+        }
+      }
+      // Program-level lessons last
+      programLessons.push(...programWithTree.lessons);
+    }
 
     const currentIndex = programLessons.findIndex(l => l.id === id);
     const prevLesson = currentIndex > 0 ? programLessons[currentIndex - 1] : null;
@@ -505,28 +549,36 @@ router.get('/sessions', async (req, res, next) => {
       ]
     };
 
-    const [sessions, total] = await Promise.all([
-      req.prisma.session.findMany({
-        where: {
-          startTime: { gte: startDate, lte: endDate },
-          ...programFilter
-        },
-        include: {
-          sessionPrograms: {
-            include: { program: { select: { name: true } } }
-          }
-        },
-        orderBy: { startTime: 'asc' }
-      }),
-      req.prisma.session.count({
-        where: programFilter
-      })
-    ]);
+    const sessions = await req.prisma.session.findMany({
+      where: {
+        OR: [
+          { isRecurring: false, startTime: { gte: startDate, lte: endDate }, ...programFilter },
+          { isRecurring: true, startTime: { lte: endDate }, ...programFilter }
+        ]
+      },
+      include: {
+        sessionPrograms: {
+          include: { program: { select: { name: true } } }
+        }
+      },
+      orderBy: { startTime: 'asc' }
+    });
+
+    // Expand recurring sessions
+    let expandedSessions = [];
+    for (const session of sessions) {
+      if (session.isRecurring) {
+        expandedSessions.push(...expandRecurringSession(session, startDate, endDate));
+      } else {
+        expandedSessions.push(session);
+      }
+    }
+    expandedSessions.sort((a, b) => new Date(a.startTime) - new Date(b.startTime));
 
     res.json({
       success: true,
       data: {
-        sessions: sessions.map(s => ({
+        sessions: expandedSessions.map(s => ({
           id: s.id,
           name: s.name,
           description: s.description,
@@ -535,7 +587,7 @@ router.get('/sessions', async (req, res, next) => {
           meetLink: s.meetLink,
           programName: s.sessionPrograms.find(sp => sp.program)?.program?.name || null
         })),
-        total
+        total: expandedSessions.length
       }
     });
   } catch (error) {
@@ -561,12 +613,20 @@ router.get('/sessions/calendar', async (req, res, next) => {
     });
     const programIds = enrollments.map(e => e.programId);
 
+    const programFilter = {
+      OR: [
+        { sessionPrograms: { some: { programId: null } } },
+        { sessionPrograms: { some: { programId: { in: programIds } } } }
+      ]
+    };
+
     const sessions = await req.prisma.session.findMany({
       where: {
-        startTime: { gte: startDate, lte: endDate },
         OR: [
-          { sessionPrograms: { some: { programId: null } } },
-          { sessionPrograms: { some: { programId: { in: programIds } } } }
+          // Non-recurring sessions in date range
+          { isRecurring: false, startTime: { gte: startDate, lte: endDate }, ...programFilter },
+          // Recurring sessions that started before range end
+          { isRecurring: true, startTime: { lte: endDate }, ...programFilter }
         ]
       },
       include: {
@@ -577,10 +637,21 @@ router.get('/sessions/calendar', async (req, res, next) => {
       orderBy: { startTime: 'asc' }
     });
 
+    // Expand recurring sessions into occurrences
+    let expandedSessions = [];
+    for (const session of sessions) {
+      if (session.isRecurring) {
+        expandedSessions.push(...expandRecurringSession(session, startDate, endDate));
+      } else {
+        expandedSessions.push(session);
+      }
+    }
+    expandedSessions.sort((a, b) => new Date(a.startTime) - new Date(b.startTime));
+
     res.json({
       success: true,
       data: {
-        sessions: sessions.map(s => ({
+        sessions: expandedSessions.map(s => ({
           id: s.id,
           name: s.name,
           description: s.description,

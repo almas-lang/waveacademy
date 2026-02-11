@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -26,9 +26,61 @@ export default function LearnerProgramDetailPage() {
   const params = useParams();
   const programId = params.id as string;
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
+  const storageKey = `program-tree:${programId}`;
+
+  // Restore expanded state from sessionStorage, or start empty
+  const [expandedItems, setExpandedItems] = useState<Set<string>>(() => {
+    if (typeof window === 'undefined') return new Set();
+    try {
+      const stored = sessionStorage.getItem(storageKey);
+      return stored ? new Set(JSON.parse(stored)) : new Set();
+    } catch {
+      return new Set();
+    }
+  });
+  const [hasRestoredState] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return !!sessionStorage.getItem(storageKey);
+  });
 
   const { data, isLoading } = useLearnerProgram(programId);
+
+  // Only auto-expand if there's no saved state (first visit)
+  useEffect(() => {
+    if (hasRestoredState || !data?.content || !data?.progress) return;
+
+    const idsToExpand = new Set<string>();
+
+    const findActiveLesson = (items: LearnerContentItem[], parentIds: string[]) => {
+      for (const item of items) {
+        if (item.type === 'lesson') {
+          const status = data.progress?.[item.id]?.status;
+          if (status === 'IN_PROGRESS') {
+            parentIds.forEach(id => idsToExpand.add(id));
+          }
+        }
+        if (item.children) {
+          findActiveLesson(item.children, [...parentIds, item.id]);
+        }
+      }
+    };
+
+    findActiveLesson(data.content, []);
+
+    // If no in-progress lesson, expand the first topic by default
+    if (idsToExpand.size === 0 && data.content.length > 0 && data.content[0].type !== 'lesson') {
+      idsToExpand.add(data.content[0].id);
+    }
+
+    if (idsToExpand.size > 0) {
+      setExpandedItems(idsToExpand);
+    }
+  }, [data, hasRestoredState]);
+
+  // Persist expanded state to sessionStorage on change
+  useEffect(() => {
+    sessionStorage.setItem(storageKey, JSON.stringify([...expandedItems]));
+  }, [expandedItems, storageKey]);
 
   const toggleExpand = (id: string) => {
     const newExpanded = new Set(expandedItems);
@@ -76,7 +128,7 @@ export default function LearnerProgramDetailPage() {
       return (
         <Link
           key={item.id}
-          href={`/learner/lessons/${item.id}`}
+          href={`/learner/lessons/${item.id}?type=${item.lessonType}`}
           className={clsx(
             'flex items-center justify-between py-3.5 px-4 rounded-lg transition-all group',
             isCompleted

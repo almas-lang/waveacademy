@@ -493,7 +493,13 @@ export default function SessionsPage() {
                   )}
                 </div>
                 {previewSession.description && (
-                  <p className="text-slate-600 mt-1">{previewSession.description}</p>
+                  <p className="text-slate-600 mt-1 whitespace-pre-wrap">
+                    {previewSession.description.split(/(https?:\/\/[^\s]+)/g).map((part, i) =>
+                      /^https?:\/\//.test(part) ? (
+                        <a key={i} href={part} target="_blank" rel="noopener noreferrer" className="text-accent-500 hover:underline break-all">{part}</a>
+                      ) : part
+                    )}
+                  </p>
                 )}
               </div>
             </div>

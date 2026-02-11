@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import {
   ArrowLeft,
@@ -51,7 +51,8 @@ function getFileIcon(name: string) {
   }
 }
 
-function LessonSkeleton() {
+function LessonSkeleton({ type }: { type?: string }) {
+  const isVideo = !type || type === 'VIDEO';
   return (
     <div className="flex-1">
       {/* Nav bar skeleton */}
@@ -66,14 +67,16 @@ function LessonSkeleton() {
         </div>
       </div>
 
-      {/* Video area — soft grey with breathing play icon */}
-      <div className="px-4 lg:px-6 py-6 bg-slate-50">
-        <div className="bg-slate-200 rounded-xl overflow-hidden" style={{ paddingTop: '56.25%', position: 'relative' }}>
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="w-14 h-14 rounded-full bg-white/60 flex items-center justify-center animate-pulse shadow-sm">
-              <Play className="w-6 h-6 text-slate-400 ml-0.5" />
+      {/* Content area skeleton */}
+      <div className={isVideo ? "px-4 lg:px-6 py-6 bg-slate-50" : "max-w-6xl mx-auto px-4 lg:px-6 py-6"}>
+        <div className="bg-slate-200 rounded-xl overflow-hidden" style={{ paddingTop: isVideo ? '56.25%' : '60%', position: 'relative' }}>
+          {isVideo && (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="w-14 h-14 rounded-full bg-white/60 flex items-center justify-center animate-pulse shadow-sm">
+                <Play className="w-6 h-6 text-slate-400 ml-0.5" />
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
 
@@ -92,7 +95,9 @@ function LessonSkeleton() {
 export default function LessonViewerPage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const lessonId = params.id as string;
+  const lessonType = searchParams.get('type') || undefined;
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showCompletionCelebration, setShowCompletionCelebration] = useState(false);
 
@@ -111,7 +116,7 @@ export default function LessonViewerPage() {
     return (
       <>
         <LearnerHeader title="Lesson" onMenuClick={() => setSidebarOpen(true)} />
-        <LessonSkeleton />
+        <LessonSkeleton type={lessonType} />
       </>
     );
   }
@@ -302,7 +307,6 @@ export default function LessonViewerPage() {
                 <iframe
                   src={`${lesson.contentUrl}#toolbar=0&navpanes=0&scrollbar=1`}
                   className="w-full h-[700px] rounded-lg border border-slate-200"
-                  sandbox="allow-same-origin allow-scripts"
                 />
               </div>
             </div>

@@ -27,14 +27,14 @@ type ViewMode = 'calendar' | 'list';
 const VIEW_STORAGE_KEY = 'sessions-view';
 
 function getStoredView(): ViewMode {
-  if (typeof window === 'undefined') return 'list';
+  if (typeof window === 'undefined') return 'calendar';
   const stored = localStorage.getItem(VIEW_STORAGE_KEY);
-  return stored === 'calendar' || stored === 'list' ? stored : 'list';
+  return stored === 'calendar' || stored === 'list' ? stored : 'calendar';
 }
 
 export default function LearnerSessionsPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [viewMode, setViewMode] = useState<ViewMode>('list');
+  const [viewMode, setViewMode] = useState<ViewMode>('calendar');
   const [currentDate, setCurrentDate] = useState(new Date());
   const [showMonthPicker, setShowMonthPicker] = useState(false);
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
@@ -144,7 +144,7 @@ export default function LearnerSessionsPage() {
     ? sessionsByDate[format(selectedDay, 'yyyy-MM-dd')] || []
     : [];
 
-  const renderSessionCard = (session: UpcomingSession, clickable = true) => {
+  const renderSessionCard = (session: UpcomingSession, clickable = true, fullDescription = false) => {
     const isLive = isSessionLive(session.startTime, session.endTime);
     const sessionPassed = isPast(new Date(session.endTime || session.startTime));
 
@@ -178,7 +178,13 @@ export default function LearnerSessionsPage() {
             </div>
 
             {session.description && (
-              <p className="text-slate-600 text-sm mb-2 line-clamp-2">{session.description}</p>
+              <p className={`text-slate-600 text-sm mb-2 whitespace-pre-wrap ${fullDescription ? '' : 'line-clamp-2'}`}>
+                {session.description.split(/(https?:\/\/[^\s]+)/g).map((part, i) =>
+                  /^https?:\/\//.test(part) ? (
+                    <a key={i} href={part} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="text-accent-500 hover:underline break-all">{part}</a>
+                  ) : part
+                )}
+              </p>
             )}
 
             <div className="flex flex-wrap items-center gap-3 text-sm">
@@ -521,7 +527,7 @@ export default function LearnerSessionsPage() {
       >
         <div className="space-y-3">
           {selectedDaySessions.length > 0 ? (
-            selectedDaySessions.map(session => renderSessionCard(session, true))
+            selectedDaySessions.map(session => renderSessionCard(session, true, true))
           ) : (
             <p className="text-sm text-slate-500 text-center py-4">No sessions on this day</p>
           )}
@@ -547,7 +553,13 @@ export default function LearnerSessionsPage() {
             </div>
 
             {selectedSession.description && (
-              <p className="text-slate-600">{selectedSession.description}</p>
+              <p className="text-slate-600 whitespace-pre-wrap">
+                {selectedSession.description.split(/(https?:\/\/[^\s]+)/g).map((part, i) =>
+                  /^https?:\/\//.test(part) ? (
+                    <a key={i} href={part} target="_blank" rel="noopener noreferrer" className="text-accent-500 hover:underline break-all">{part}</a>
+                  ) : part
+                )}
+              </p>
             )}
 
             <div className="space-y-2 text-sm">

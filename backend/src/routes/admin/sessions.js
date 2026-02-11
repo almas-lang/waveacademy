@@ -2,6 +2,7 @@
 const express = require('express');
 const router = express.Router();
 const { authenticate, requireAdmin } = require('../../middleware/auth');
+const { expandRecurringSession } = require('../../utils/recurrence');
 
 router.use(authenticate);
 router.use(requireAdmin);
@@ -13,40 +14,78 @@ router.use(requireAdmin);
 router.get('/', async (req, res, next) => {
   try {
     const { from, to, programId, page = 1, limit = 50 } = req.query;
-    const skip = (parseInt(page) - 1) * parseInt(limit);
 
-    const where = {};
+    const programFilter = programId
+      ? {
+          OR: [
+            { sessionPrograms: { some: { programId } } },
+            { sessionPrograms: { some: { programId: null } } }
+          ]
+        }
+      : {};
 
-    if (from || to) {
-      where.startTime = {};
-      if (from) where.startTime.gte = new Date(from);
-      if (to) where.startTime.lte = new Date(to);
+    const rangeStart = from ? new Date(from) : null;
+    const rangeEnd = to ? new Date(to) : null;
+
+    // Build query: fetch sessions in date range + any recurring sessions that started before range end
+    const whereConditions = [];
+
+    // Non-recurring sessions in date range
+    if (rangeStart || rangeEnd) {
+      const dateFilter = {};
+      if (rangeStart) dateFilter.gte = rangeStart;
+      if (rangeEnd) dateFilter.lte = rangeEnd;
+      whereConditions.push({ isRecurring: false, startTime: dateFilter, ...programFilter });
+
+      // Recurring sessions that started before range end (they may have occurrences in range)
+      whereConditions.push({
+        isRecurring: true,
+        startTime: { lte: rangeEnd || new Date('2099-12-31') },
+        ...programFilter
+      });
+    } else {
+      whereConditions.push({ ...programFilter });
     }
 
-    if (programId) {
-      where.sessionPrograms = {
-        some: { programId }
-      };
-    }
+    const where = whereConditions.length === 1
+      ? whereConditions[0]
+      : { OR: whereConditions };
 
-    const [sessions, total] = await Promise.all([
-      req.prisma.session.findMany({
-        where,
-        include: {
-          sessionPrograms: {
-            include: {
-              program: { select: { name: true } }
-            }
+    const sessions = await req.prisma.session.findMany({
+      where,
+      include: {
+        sessionPrograms: {
+          include: {
+            program: { select: { name: true } }
           }
-        },
-        orderBy: { startTime: 'asc' },
-        skip,
-        take: parseInt(limit)
-      }),
-      req.prisma.session.count({ where })
-    ]);
+        }
+      },
+      orderBy: { startTime: 'asc' }
+    });
 
-    const formattedSessions = sessions.map(session => ({
+    // Expand recurring sessions into occurrences within the date range
+    let expandedSessions = [];
+    if (rangeStart && rangeEnd) {
+      for (const session of sessions) {
+        if (session.isRecurring) {
+          expandedSessions.push(...expandRecurringSession(session, rangeStart, rangeEnd));
+        } else {
+          expandedSessions.push(session);
+        }
+      }
+    } else {
+      expandedSessions = sessions;
+    }
+
+    // Sort by startTime
+    expandedSessions.sort((a, b) => new Date(a.startTime) - new Date(b.startTime));
+
+    // Paginate
+    const total = expandedSessions.length;
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const paginatedSessions = expandedSessions.slice(skip, skip + parseInt(limit));
+
+    const formattedSessions = paginatedSessions.map(session => ({
       id: session.id,
       name: session.name,
       description: session.description,

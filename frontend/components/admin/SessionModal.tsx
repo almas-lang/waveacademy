@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Modal, Button, Input } from '@/components/ui';
 import { useCreateSession, useUpdateSession, usePrograms } from '@/hooks';
 import { Session, CreateSessionData } from '@/types/admin';
@@ -44,6 +44,16 @@ export default function SessionModal({ isOpen, onClose, session, onDelete }: Ses
   const [selectedPrograms, setSelectedPrograms] = useState<string[]>([]);
   const [allPrograms, setAllPrograms] = useState(true);
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const descriptionRef = useRef<HTMLTextAreaElement>(null);
+
+  const autoResizeDescription = useCallback(() => {
+    const el = descriptionRef.current;
+    if (el) {
+      el.style.height = 'auto';
+      el.style.height = el.scrollHeight + 'px';
+    }
+  }, []);
 
   const { data: programs } = usePrograms();
   const createSession = useCreateSession();
@@ -104,8 +114,10 @@ export default function SessionModal({ isOpen, onClose, session, onDelete }: Ses
         setAllPrograms(true);
       }
       setErrors({});
+      // Auto-resize description on next tick after state update
+      setTimeout(autoResizeDescription, 0);
     }
-  }, [session, isOpen, programs]);
+  }, [session, isOpen, programs, autoResizeDescription]);
 
   const parseRecurrenceRule = (rule: string) => {
     if (rule.includes('FREQ=DAILY')) {
@@ -289,11 +301,15 @@ export default function SessionModal({ isOpen, onClose, session, onDelete }: Ses
               Description <span className="text-slate-400 font-normal">(optional)</span>
             </label>
             <textarea
+              ref={descriptionRef}
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              onChange={(e) => {
+                setDescription(e.target.value);
+                autoResizeDescription();
+              }}
               placeholder="Session details..."
               rows={2}
-              className="w-full px-3.5 py-2.5 text-sm rounded-lg border border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500/20 focus:border-slate-500 hover:border-slate-400 transition-all"
+              className="w-full px-3.5 py-2.5 text-sm rounded-lg border border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500/20 focus:border-slate-500 hover:border-slate-400 transition-all resize-none overflow-hidden"
             />
           </div>
 
