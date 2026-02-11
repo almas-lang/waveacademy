@@ -305,7 +305,11 @@ export default function SessionModal({ isOpen, onClose, session, onDelete }: Ses
               value={description}
               onChange={(e) => {
                 setDescription(e.target.value);
-                autoResizeDescription();
+              }}
+              onInput={(e) => {
+                const el = e.currentTarget;
+                el.style.height = 'auto';
+                el.style.height = el.scrollHeight + 'px';
               }}
               placeholder="Session details..."
               rows={2}
