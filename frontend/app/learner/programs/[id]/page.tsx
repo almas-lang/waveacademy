@@ -79,7 +79,7 @@ export default function LearnerProgramDetailPage() {
 
   // Persist expanded state to sessionStorage on change
   useEffect(() => {
-    sessionStorage.setItem(storageKey, JSON.stringify([...expandedItems]));
+    sessionStorage.setItem(storageKey, JSON.stringify(Array.from(expandedItems)));
   }, [expandedItems, storageKey]);
 
   const toggleExpand = (id: string) => {
