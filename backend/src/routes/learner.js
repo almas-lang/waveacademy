@@ -100,10 +100,65 @@ router.get('/home', async (req, res, next) => {
         orderBy: { startTime: 'asc' }
       });
 
+      // Learning stats (derived from already-fetched progress)
+      const completedLessons = progress.filter(p => p.status === 'COMPLETED').length;
+      const totalWatchSeconds = progress.reduce((sum, p) => sum + (p.watchPositionSeconds || 0), 0);
+      const hoursLearned = Math.round(totalWatchSeconds / 360) / 10; // 1 decimal
+
+      // Active days this week (Monday = start)
+      const now = new Date();
+      const dayOfWeek = now.getDay();
+      const startOfWeek = new Date(now);
+      startOfWeek.setDate(now.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
+      startOfWeek.setHours(0, 0, 0, 0);
+
+      const activeDaysThisWeek = new Set(
+        progress
+          .filter(p => p.lastAccessedAt && new Date(p.lastAccessedAt) >= startOfWeek)
+          .map(p => new Date(p.lastAccessedAt).toDateString())
+      ).size;
+
+      // Current streak (consecutive days with activity)
+      const uniqueDates = Array.from(new Set(
+        progress
+          .filter(p => p.lastAccessedAt)
+          .map(p => {
+            const d = new Date(p.lastAccessedAt);
+            return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+          })
+      )).sort().reverse();
+
+      let currentStreak = 0;
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const checkDate = new Date(today);
+
+      // If not active today, start checking from yesterday
+      const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+      if (!uniqueDates.includes(todayStr)) {
+        checkDate.setDate(checkDate.getDate() - 1);
+      }
+
+      for (let i = 0; i < 365; i++) {
+        const checkStr = `${checkDate.getFullYear()}-${String(checkDate.getMonth() + 1).padStart(2, '0')}-${String(checkDate.getDate()).padStart(2, '0')}`;
+        if (uniqueDates.includes(checkStr)) {
+          currentStreak++;
+          checkDate.setDate(checkDate.getDate() - 1);
+        } else {
+          break;
+        }
+      }
+
       return {
         user: { name: req.user.name },
         enrolledPrograms,
         continueLearning,
+        learningStats: {
+          lessonsCompleted: completedLessons,
+          hoursLearned,
+          activeDaysThisWeek,
+          currentStreak
+        },
         upcomingSessions: upcomingSessions.map(s => ({
           id: s.id,
           name: s.name,

@@ -1,4 +1,19 @@
 // Learner Home types
+export interface ContinueLearning {
+  lessonId: string;
+  lessonTitle: string;
+  programName: string;
+  watchPosition: number;
+  totalDuration: number | null;
+}
+
+export interface LearningStats {
+  lessonsCompleted: number;
+  hoursLearned: number;
+  activeDaysThisWeek: number;
+  currentStreak: number;
+}
+
 export interface LearnerHome {
   user: {
     id: string;
@@ -6,6 +21,8 @@ export interface LearnerHome {
     email: string;
   };
   enrolledPrograms: EnrolledProgram[];
+  continueLearning: ContinueLearning | null;
+  learningStats: LearningStats;
   upcomingSessions: UpcomingSession[];
   recentProgress: RecentLessonProgress[];
 }
