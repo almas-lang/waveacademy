@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { BookOpen, Users, Calendar, Clock, Video, ArrowRight, Plus, UserPlus, Zap } from 'lucide-react';
-import { AdminHeader, StatsCard, EnrollmentChart, ProgramPerformance, RecentActivity } from '@/components/admin';
+import { AdminHeader, StatsCard, EnrollmentChart, DailyActiveUsersChart, ProgramPerformance, RecentActivity } from '@/components/admin';
 import { Button, PageLoading } from '@/components/ui';
 import { useDashboardAnalytics, useTodaySessions } from '@/hooks';
 import { useAuthStore } from '@/lib/auth-store';
@@ -95,12 +95,14 @@ export default function AdminDashboard() {
           />
         </div>
 
-        {/* Row 2: Enrollment Chart + Today's Sessions */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8 mb-8">
-          <div className="lg:col-span-2">
-            <EnrollmentChart data={analytics?.enrollmentChart ?? []} />
-          </div>
+        {/* Row 2: Enrollment Chart + DAU Chart */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 mb-8">
+          <EnrollmentChart data={analytics?.enrollmentChart ?? []} />
+          <DailyActiveUsersChart data={analytics?.dailyActiveUsers ?? []} />
+        </div>
 
+        {/* Row 3: Today's Sessions + Program Performance + Recent Activity */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8 mb-8">
           {/* Today's Sessions */}
           <div className="bg-white rounded-xl border border-slate-200/80 shadow-soft overflow-hidden">
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
@@ -169,10 +171,7 @@ export default function AdminDashboard() {
               )}
             </div>
           </div>
-        </div>
 
-        {/* Row 3: Program Performance + Recent Activity */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
           <ProgramPerformance
             programs={analytics?.programPerformance ?? []}
             overallCompletionRate={stats?.overallCompletionRate ?? 0}

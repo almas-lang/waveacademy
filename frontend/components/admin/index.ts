@@ -8,5 +8,6 @@ export { default as SessionModal } from './SessionModal';
 export { default as NotificationDropdown } from './NotificationDropdown';
 export { default as GlobalSearch } from './GlobalSearch';
 export { default as EnrollmentChart } from './EnrollmentChart';
+export { default as DailyActiveUsersChart } from './DailyActiveUsersChart';
 export { default as ProgramPerformance } from './ProgramPerformance';
 export { default as RecentActivity } from './RecentActivity';

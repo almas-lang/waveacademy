@@ -33,6 +33,10 @@ router.get('/analytics', async (req, res, next) => {
       // 6 months ago for chart
       const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1);
 
+      // 30 days ago for DAU chart
+      const thirtyDaysAgo = new Date(startOfToday);
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 29);
+
       // ---- Batch 1: All independent counts ----
       const [
         totalPrograms,
@@ -50,6 +54,7 @@ router.get('/analytics', async (req, res, next) => {
         totalCompletedLessons,
         recentEnrollments,
         recentCompletions,
+        dailyActiveUsersRaw,
       ] = await Promise.all([
         // Programs
         prisma.program.count(),
@@ -62,7 +67,7 @@ router.get('/analytics', async (req, res, next) => {
         prisma.user.count({ where: { role: 'LEARNER', createdAt: { gte: startOfLastMonth, lt: startOfMonth } } }),
 
         // Today's sessions vs yesterday
-        prisma.session.count({ where: { startTime: { gte: startOfToday } } }),
+        prisma.session.count({ where: { startTime: { gte: startOfToday, lt: new Date(startOfToday.getTime() + 24 * 60 * 60 * 1000) } } }),
         prisma.session.count({ where: { startTime: { gte: startOfYesterday, lt: startOfToday } } }),
 
         // Active learners (distinct users with login activity this week)
@@ -124,6 +129,29 @@ router.get('/analytics', async (req, res, next) => {
             lesson: { select: { title: true } },
           },
         }),
+
+        // Daily active users (last 30 days)
+        prisma.$queryRaw`
+          SELECT
+            TO_CHAR(d.day, 'Mon DD') AS date,
+            d.day AS raw_date,
+            CAST(COALESCE(u.cnt, 0) AS INTEGER) AS users
+          FROM generate_series(
+            ${thirtyDaysAgo}::date,
+            ${startOfToday}::date,
+            '1 day'::interval
+          ) AS d(day)
+          LEFT JOIN (
+            SELECT
+              DATE_TRUNC('day', us.last_active) AS day,
+              COUNT(DISTINCT us.user_id) AS cnt
+            FROM user_sessions us
+            JOIN users u ON u.id = us.user_id AND u.role = 'LEARNER'
+            WHERE us.last_active >= ${thirtyDaysAgo}
+            GROUP BY DATE_TRUNC('day', us.last_active)
+          ) u ON DATE_TRUNC('day', d.day) = u.day
+          ORDER BY d.day ASC
+        `,
       ]);
 
       // ---- Batch 2: Per-program completion rates for top 5 ----
@@ -222,6 +250,12 @@ router.get('/analytics', async (req, res, next) => {
         .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
         .slice(0, 8);
 
+      // ---- DAU chart: strip raw_date ----
+      const dailyActiveUsers = dailyActiveUsersRaw.map(d => ({
+        date: d.date,
+        users: d.users,
+      }));
+
       return {
         stats: {
           totalPrograms,
@@ -237,6 +271,7 @@ router.get('/analytics', async (req, res, next) => {
           todaySessions: computeTrend(todaySessions, yesterdaySessions),
         },
         enrollmentChart: chartData,
+        dailyActiveUsers,
         programPerformance,
         recentActivity,
       };

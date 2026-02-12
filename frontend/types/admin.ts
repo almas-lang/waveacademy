@@ -206,6 +206,11 @@ export interface EnrollmentChartPoint {
   enrollments: number;
 }
 
+export interface DailyActiveUsersPoint {
+  date: string;
+  users: number;
+}
+
 export interface ProgramPerformanceItem {
   id: string;
   name: string;
@@ -223,6 +228,7 @@ export interface DashboardAnalytics {
   stats: DashboardStats;
   trends: DashboardTrends;
   enrollmentChart: EnrollmentChartPoint[];
+  dailyActiveUsers: DailyActiveUsersPoint[];
   programPerformance: ProgramPerformanceItem[];
   recentActivity: ActivityItem[];
 }
