@@ -35,7 +35,7 @@ router.get('/', async (req, res, next) => {
     const cacheKey = `programs:list:${all}:${page}:${limit}`;
 
     const result = await cacheGet(cacheKey, async () => {
-      const [programs, total] = await Promise.all([
+      const [programs, total, durations] = await Promise.all([
         req.prisma.program.findMany({
           include: {
             _count: {
@@ -43,19 +43,25 @@ router.get('/', async (req, res, next) => {
                 enrollments: true,
                 lessons: true
               }
-            },
-            lessons: {
-              select: { durationSeconds: true }
             }
           },
           orderBy: { createdAt: 'desc' },
           ...paginationOptions
         }),
-        req.prisma.program.count()
+        req.prisma.program.count(),
+        // Aggregate lesson durations per program instead of fetching all lesson rows
+        req.prisma.lesson.groupBy({
+          by: ['programId'],
+          _sum: { durationSeconds: true }
+        })
       ]);
 
+      const durationMap = Object.fromEntries(
+        durations.map(d => [d.programId, d._sum.durationSeconds || 0])
+      );
+
       const programsWithStats = programs.map(program => {
-        const totalDuration = program.lessons.reduce((sum, l) => sum + (l.durationSeconds || 0), 0);
+        const totalDuration = durationMap[program.id] || 0;
         return {
           id: program.id,
           name: program.name,
@@ -602,37 +608,33 @@ router.put('/:id/reorder', async (req, res, next) => {
       });
     }
 
-    console.log('Reorder request:', { programId, items });
-
-    // Process each item update
+    // Process each item update — verify ownership before updating
     for (const item of items) {
       const { id, type, orderIndex, parentId, parentType } = item;
 
-      console.log('Processing item:', { id, type, orderIndex, parentId, parentType });
-
       if (type === 'topic') {
+        const topic = await req.prisma.topic.findUnique({ where: { id }, select: { programId: true } });
+        if (!topic || topic.programId !== programId) continue;
         await req.prisma.topic.update({
           where: { id },
           data: { orderIndex }
         });
       } else if (type === 'subtopic') {
-        // Subtopics must have a parent topic
-        if (!parentId) {
-          console.warn('Subtopic without parent topic, skipping parent update');
-          await req.prisma.subtopic.update({
-            where: { id },
-            data: { orderIndex }
-          });
-        } else {
-          await req.prisma.subtopic.update({
-            where: { id },
-            data: {
-              orderIndex,
-              topicId: parentId // Update parent if moved to different topic
-            }
-          });
-        }
+        const subtopic = await req.prisma.subtopic.findUnique({
+          where: { id },
+          select: { topic: { select: { programId: true } }, topicId: true }
+        });
+        if (!subtopic || subtopic.topic.programId !== programId) continue;
+        await req.prisma.subtopic.update({
+          where: { id },
+          data: {
+            orderIndex,
+            ...(parentId ? { topicId: parentId } : {})
+          }
+        });
       } else if (type === 'lesson') {
+        const lesson = await req.prisma.lesson.findUnique({ where: { id }, select: { programId: true } });
+        if (!lesson || lesson.programId !== programId) continue;
         const updateData = { orderIndex };
 
         // Handle lesson parent changes
@@ -644,7 +646,6 @@ router.put('/:id/reorder', async (req, res, next) => {
           updateData.subtopicId = null;
         } else if (parentType === 'subtopic') {
           updateData.subtopicId = parentId;
-          // Get the topic from subtopic
           const subtopic = await req.prisma.subtopic.findUnique({
             where: { id: parentId },
             select: { topicId: true }

@@ -1,5 +1,10 @@
 const express = require('express');
 const router = express.Router();
+const { authenticate, requireAdmin } = require('../../middleware/auth');
+
+// Apply auth to all routes
+router.use(authenticate);
+router.use(requireAdmin);
 
 // GET /admin/notifications - Get all notifications (admin view)
 router.get('/', async (req, res, next) => {

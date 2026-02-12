@@ -4,6 +4,7 @@
  */
 
 const DAY_MAP = { SU: 0, MO: 1, TU: 2, WE: 3, TH: 4, FR: 5, SA: 6 };
+const MAX_OCCURRENCES = 365; // Safety cap to prevent memory exhaustion
 
 function toDateKey(date) {
   return date.toISOString().slice(0, 10); // "YYYY-MM-DD"
@@ -52,7 +53,7 @@ function expandRecurringSession(session, rangeStart, rangeEnd) {
 
   if (freq === 'DAILY') {
     let current = new Date(baseStart);
-    while (current <= effectiveEnd) {
+    while (current <= effectiveEnd && occurrences.length < MAX_OCCURRENCES) {
       if (current >= rangeStart && !excludedDates.has(toDateKey(current))) {
         occurrences.push(makeOccurrence(session, current, duration));
       }
@@ -68,7 +69,7 @@ function expandRecurringSession(session, rangeStart, rangeEnd) {
     weekStart.setDate(weekStart.getDate() - weekStart.getDay()); // Go to Sunday of that week
     weekStart.setHours(0, 0, 0, 0);
 
-    while (weekStart <= effectiveEnd) {
+    while (weekStart <= effectiveEnd && occurrences.length < MAX_OCCURRENCES) {
       for (const dayOfWeek of days) {
         const occurrence = new Date(weekStart);
         occurrence.setDate(occurrence.getDate() + dayOfWeek);
