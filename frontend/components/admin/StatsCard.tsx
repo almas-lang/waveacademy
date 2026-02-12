@@ -1,6 +1,6 @@
 'use client';
 
-import { ReactNode } from 'react';
+import { ReactNode, useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
 import { TrendingUp, TrendingDown, ArrowRight } from 'lucide-react';
 import clsx from 'clsx';
@@ -9,27 +9,63 @@ interface StatsCardProps {
   title: string;
   value: string | number;
   icon: ReactNode;
+  iconColor?: 'teal' | 'coral' | 'blue' | 'purple' | 'slate';
   trend?: {
     value: number;
     isPositive: boolean;
   };
   trendLabel?: string;
   description?: string;
-  variant?: 'default' | 'accent';
   href?: string;
   className?: string;
+  animationDelay?: number;
 }
+
+function AnimatedNumber({ value }: { value: number }) {
+  const [display, setDisplay] = useState(0);
+  const hasAnimated = useRef(false);
+
+  useEffect(() => {
+    if (hasAnimated.current) return;
+    hasAnimated.current = true;
+
+    const duration = 800;
+    const start = performance.now();
+
+    function step(now: number) {
+      const elapsed = now - start;
+      const progress = Math.min(elapsed / duration, 1);
+      // Ease out cubic
+      const eased = 1 - Math.pow(1 - progress, 3);
+      setDisplay(Math.round(eased * value));
+      if (progress < 1) requestAnimationFrame(step);
+    }
+
+    requestAnimationFrame(step);
+  }, [value]);
+
+  return <span>{display.toLocaleString()}</span>;
+}
+
+const iconColorClasses = {
+  teal: 'bg-primary-50 text-primary-500',
+  coral: 'bg-accent-50 text-accent-500',
+  blue: 'bg-blue-50 text-blue-500',
+  purple: 'bg-purple-50 text-purple-500',
+  slate: 'bg-slate-100 text-slate-600',
+};
 
 export default function StatsCard({
   title,
   value,
   icon,
+  iconColor = 'slate',
   trend,
   trendLabel,
   description,
-  variant = 'default',
   href,
   className,
+  animationDelay = 0,
 }: StatsCardProps) {
   const cardContent = (
     <>
@@ -42,15 +78,13 @@ export default function StatsCard({
           <div>
             <p className="text-sm font-medium text-slate-500 mb-1">{title}</p>
             <p className="text-3xl font-bold text-slate-900 tracking-tight">
-              {typeof value === 'number' ? value.toLocaleString() : value}
+              {typeof value === 'number' ? <AnimatedNumber value={value} /> : value}
             </p>
           </div>
           <div
             className={clsx(
               'p-3 rounded-xl transition-colors',
-              variant === 'accent'
-                ? 'bg-accent-50 text-accent-500'
-                : 'bg-slate-100 text-slate-600',
+              iconColorClasses[iconColor],
               href && 'group-hover:bg-slate-900 group-hover:text-white'
             )}
           >
@@ -89,11 +123,6 @@ export default function StatsCard({
           </div>
         )}
       </div>
-
-      {/* Decorative accent line for accent variant */}
-      {variant === 'accent' && (
-        <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-accent-500 to-accent-400" />
-      )}
     </>
   );
 
@@ -101,22 +130,25 @@ export default function StatsCard({
     'relative overflow-hidden rounded-xl border p-5',
     'bg-white border-slate-200/80 shadow-soft',
     'transition-all duration-200',
+    'animate-slide-up opacity-0 [animation-fill-mode:forwards]',
     href
       ? 'cursor-pointer hover:shadow-elevated hover:border-slate-300/80 group'
       : 'hover:shadow-elevated hover:border-slate-300/80',
     className
   );
 
+  const style = animationDelay > 0 ? { animationDelay: `${animationDelay}ms` } : undefined;
+
   if (href) {
     return (
-      <Link href={href} className={cardClasses}>
+      <Link href={href} className={cardClasses} style={style}>
         {cardContent}
       </Link>
     );
   }
 
   return (
-    <div className={cardClasses}>
+    <div className={cardClasses} style={style}>
       {cardContent}
     </div>
   );

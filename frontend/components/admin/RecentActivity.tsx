@@ -10,7 +10,7 @@ interface RecentActivityProps {
 
 export default function RecentActivity({ activities }: RecentActivityProps) {
   return (
-    <div className="bg-white rounded-xl border border-slate-200/80 shadow-soft overflow-hidden">
+    <div className="bg-white rounded-xl border border-slate-200/80 shadow-soft overflow-hidden animate-slide-up opacity-0 [animation-fill-mode:forwards] [animation-delay:300ms]">
       <div className="px-6 py-4 border-b border-slate-100">
         <h2 className="text-base font-semibold text-slate-900">Recent Activity</h2>
         <p className="text-xs text-slate-500 mt-0.5">Latest enrollments and completions</p>

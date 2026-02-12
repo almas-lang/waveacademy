@@ -9,7 +9,7 @@ interface DailyActiveUsersChartProps {
 
 export default function DailyActiveUsersChart({ data }: DailyActiveUsersChartProps) {
   return (
-    <div className="bg-white rounded-xl border border-slate-200/80 shadow-soft overflow-hidden">
+    <div className="bg-white rounded-xl border border-slate-200/80 shadow-soft overflow-hidden animate-slide-up opacity-0 [animation-fill-mode:forwards] [animation-delay:150ms]">
       <div className="px-6 py-4 border-b border-slate-100">
         <h2 className="text-base font-semibold text-slate-900">Daily Active Users</h2>
         <p className="text-xs text-slate-500 mt-0.5">Unique learners active per day (last 30 days)</p>
@@ -38,14 +38,18 @@ export default function DailyActiveUsersChart({ data }: DailyActiveUsersChartPro
               allowDecimals={false}
             />
             <Tooltip
-              contentStyle={{
-                backgroundColor: '#fff',
-                border: '1px solid #e2e8f0',
-                borderRadius: '8px',
-                fontSize: '13px',
-                boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
+              content={({ active, payload, label }) => {
+                if (!active || !payload?.length) return null;
+                return (
+                  <div className="bg-white border border-slate-200 rounded-lg px-3 py-2 shadow-elevated">
+                    <p className="text-sm font-semibold text-slate-900">{label}</p>
+                    <div className="flex items-center gap-1.5 mt-1">
+                      <span className="w-2 h-2 rounded-full bg-accent-500" />
+                      <span className="text-sm text-slate-600">{payload[0].value} users</span>
+                    </div>
+                  </div>
+                );
               }}
-              labelStyle={{ fontWeight: 600, color: '#0f172a' }}
             />
             <Area
               type="monotone"
@@ -53,6 +57,7 @@ export default function DailyActiveUsersChart({ data }: DailyActiveUsersChartPro
               stroke="#FF6B57"
               strokeWidth={2}
               fill="url(#dauGradient)"
+              animationDuration={1200}
             />
           </AreaChart>
         </ResponsiveContainer>

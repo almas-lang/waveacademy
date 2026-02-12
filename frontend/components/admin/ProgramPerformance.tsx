@@ -9,18 +9,50 @@ interface ProgramPerformanceProps {
   overallCompletionRate: number;
 }
 
+function CompletionRing({ percentage, size = 40 }: { percentage: number; size?: number }) {
+  const strokeWidth = 4;
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference - (percentage / 100) * circumference;
+
+  return (
+    <div className="relative flex items-center justify-center" style={{ width: size, height: size }}>
+      <svg width={size} height={size} className="-rotate-90">
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          stroke="#e2e8f0"
+          strokeWidth={strokeWidth}
+        />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          stroke="#195E72"
+          strokeWidth={strokeWidth}
+          strokeDasharray={circumference}
+          strokeDashoffset={offset}
+          strokeLinecap="round"
+          className="transition-all duration-1000 ease-out"
+        />
+      </svg>
+      <span className="absolute text-[10px] font-bold text-slate-700">{percentage}%</span>
+    </div>
+  );
+}
+
 export default function ProgramPerformance({ programs, overallCompletionRate }: ProgramPerformanceProps) {
   return (
-    <div className="bg-white rounded-xl border border-slate-200/80 shadow-soft overflow-hidden">
+    <div className="bg-white rounded-xl border border-slate-200/80 shadow-soft overflow-hidden animate-slide-up opacity-0 [animation-fill-mode:forwards] [animation-delay:200ms]">
       <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
         <div>
           <h2 className="text-base font-semibold text-slate-900">Program Performance</h2>
           <p className="text-xs text-slate-500 mt-0.5">Top programs by enrollment</p>
         </div>
-        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-primary-50 text-primary-700">
-          <BarChart3 className="w-3.5 h-3.5" />
-          <span className="text-xs font-semibold">{overallCompletionRate}% overall</span>
-        </div>
+        <CompletionRing percentage={overallCompletionRate} />
       </div>
 
       <div className="p-4">
@@ -54,7 +86,7 @@ export default function ProgramPerformance({ programs, overallCompletionRate }: 
                     <div className="flex items-center gap-2.5">
                       <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
                         <div
-                          className="h-full bg-primary-500 rounded-full transition-all duration-500"
+                          className="h-full bg-primary-500 rounded-full transition-all duration-1000 ease-out"
                           style={{ width: `${program.completionRate}%` }}
                         />
                       </div>

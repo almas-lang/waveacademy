@@ -1,16 +1,82 @@
 'use client';
 
-import { useState } from 'react';
 import Link from 'next/link';
 import { BookOpen, Users, Calendar, Clock, Video, ArrowRight, Plus, UserPlus, Zap } from 'lucide-react';
 import { AdminHeader, StatsCard, EnrollmentChart, DailyActiveUsersChart, ProgramPerformance, RecentActivity } from '@/components/admin';
-import { Button, PageLoading } from '@/components/ui';
+import { Button } from '@/components/ui';
 import { useDashboardAnalytics, useTodaySessions } from '@/hooks';
 import { useAuthStore } from '@/lib/auth-store';
 import { format } from 'date-fns';
 
+function getGreeting(): string {
+  const hour = new Date().getHours();
+  if (hour < 12) return 'Good morning';
+  if (hour < 17) return 'Good afternoon';
+  return 'Good evening';
+}
+
+function DashboardSkeleton() {
+  return (
+    <div className="flex-1 p-6 lg:p-8">
+      {/* Quick actions skeleton */}
+      <div className="flex gap-3 mb-6">
+        {[1, 2, 3].map(i => (
+          <div key={i} className="h-9 w-36 bg-slate-100 rounded-lg animate-pulse" />
+        ))}
+      </div>
+
+      {/* Stats skeleton */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 mb-8">
+        {[1, 2, 3, 4].map(i => (
+          <div key={i} className="bg-white rounded-xl border border-slate-200/80 p-5 shadow-soft">
+            <div className="flex items-start justify-between mb-4">
+              <div>
+                <div className="h-4 w-24 bg-slate-100 rounded animate-pulse mb-2" />
+                <div className="h-8 w-16 bg-slate-100 rounded animate-pulse" />
+              </div>
+              <div className="w-11 h-11 bg-slate-100 rounded-xl animate-pulse" />
+            </div>
+            <div className="h-4 w-32 bg-slate-100 rounded animate-pulse" />
+          </div>
+        ))}
+      </div>
+
+      {/* Charts skeleton */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 mb-8">
+        {[1, 2].map(i => (
+          <div key={i} className="bg-white rounded-xl border border-slate-200/80 shadow-soft overflow-hidden">
+            <div className="px-6 py-4 border-b border-slate-100">
+              <div className="h-5 w-36 bg-slate-100 rounded animate-pulse mb-1.5" />
+              <div className="h-3 w-48 bg-slate-50 rounded animate-pulse" />
+            </div>
+            <div className="p-4">
+              <div className="h-[240px] bg-slate-50 rounded-lg animate-pulse" />
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Bottom row skeleton */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
+        {[1, 2, 3].map(i => (
+          <div key={i} className="bg-white rounded-xl border border-slate-200/80 shadow-soft overflow-hidden">
+            <div className="px-6 py-4 border-b border-slate-100">
+              <div className="h-5 w-32 bg-slate-100 rounded animate-pulse mb-1.5" />
+              <div className="h-3 w-44 bg-slate-50 rounded animate-pulse" />
+            </div>
+            <div className="p-4 space-y-3">
+              {[1, 2, 3].map(j => (
+                <div key={j} className="h-14 bg-slate-50 rounded-lg animate-pulse" />
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function AdminDashboard() {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const user = useAuthStore((state) => state.user);
 
   const { data: analytics, isLoading: analyticsLoading } = useDashboardAnalytics();
@@ -22,8 +88,8 @@ export default function AdminDashboard() {
   if (isLoading) {
     return (
       <>
-        <AdminHeader title="Dashboard" onMenuClick={() => setSidebarOpen(true)} />
-        <PageLoading />
+        <AdminHeader title="Dashboard" subtitle={`${getGreeting()}, ${firstName}!`} />
+        <DashboardSkeleton />
       </>
     );
   }
@@ -35,8 +101,7 @@ export default function AdminDashboard() {
     <>
       <AdminHeader
         title="Dashboard"
-        subtitle={`Welcome back, ${firstName}!`}
-        onMenuClick={() => setSidebarOpen(true)}
+        subtitle={`${getGreeting()}, ${firstName}!`}
       />
 
       <div className="flex-1 p-6 lg:p-8">
@@ -65,33 +130,40 @@ export default function AdminDashboard() {
             title="Total Programs"
             value={stats?.totalPrograms ?? 0}
             icon={<BookOpen className="w-5 h-5" />}
+            iconColor="teal"
             trend={trends?.programs}
             trendLabel="vs last month"
             href="/admin/programs"
+            animationDelay={0}
           />
           <StatsCard
             title="Active Learners"
             value={stats?.activeLearners ?? 0}
             icon={<Zap className="w-5 h-5" />}
-            variant="accent"
+            iconColor="coral"
             trend={trends?.activeLearners}
             trendLabel="vs last week"
+            animationDelay={75}
           />
           <StatsCard
             title="Total Learners"
             value={stats?.totalLearners ?? 0}
             icon={<Users className="w-5 h-5" />}
+            iconColor="blue"
             trend={trends?.learners}
             trendLabel="vs last month"
             href="/admin/learners"
+            animationDelay={150}
           />
           <StatsCard
             title="Today's Sessions"
             value={stats?.todaySessions ?? 0}
             icon={<Calendar className="w-5 h-5" />}
+            iconColor="purple"
             trend={trends?.todaySessions}
             trendLabel="vs yesterday"
             href="/admin/sessions"
+            animationDelay={225}
           />
         </div>
 
@@ -104,7 +176,7 @@ export default function AdminDashboard() {
         {/* Row 3: Today's Sessions + Program Performance + Recent Activity */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8 mb-8">
           {/* Today's Sessions */}
-          <div className="bg-white rounded-xl border border-slate-200/80 shadow-soft overflow-hidden">
+          <div className="bg-white rounded-xl border border-slate-200/80 shadow-soft overflow-hidden animate-slide-up opacity-0 [animation-fill-mode:forwards] [animation-delay:100ms]">
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
               <div>
                 <h2 className="text-base font-semibold text-slate-900">Today&apos;s Sessions</h2>
@@ -124,7 +196,6 @@ export default function AdminDashboard() {
                     <div
                       key={session.id}
                       className="flex items-center justify-between p-3.5 bg-slate-50/80 rounded-lg border border-slate-100 hover:bg-slate-50 transition-colors"
-                      style={{ animationDelay: `${index * 50}ms` }}
                     >
                       <div className="flex items-center gap-3.5">
                         <div className="w-10 h-10 bg-slate-900 rounded-lg flex items-center justify-center shadow-sm">
