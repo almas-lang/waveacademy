@@ -86,7 +86,8 @@ export function useDeleteSession() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (id: string) => adminApi.deleteSession(id),
+    mutationFn: ({ id, deleteMode, occurrenceDate }: { id: string; deleteMode?: string; occurrenceDate?: string }) =>
+      adminApi.deleteSession(id, { deleteMode, occurrenceDate }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: sessionKeys.all });
       toast.success('Session deleted successfully');

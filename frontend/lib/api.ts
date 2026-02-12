@@ -297,8 +297,12 @@ export const adminApi = {
     return response.data;
   },
 
-  deleteSession: async (id: string) => {
-    const response = await api.delete(`/admin/sessions/${id}`);
+  deleteSession: async (id: string, opts?: { deleteMode?: string; occurrenceDate?: string }) => {
+    const params = new URLSearchParams();
+    if (opts?.deleteMode) params.set('deleteMode', opts.deleteMode);
+    if (opts?.occurrenceDate) params.set('occurrenceDate', opts.occurrenceDate);
+    const qs = params.toString();
+    const response = await api.delete(`/admin/sessions/${id}${qs ? `?${qs}` : ''}`);
     return response.data;
   },
 

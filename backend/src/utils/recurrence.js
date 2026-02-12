@@ -5,6 +5,10 @@
 
 const DAY_MAP = { SU: 0, MO: 1, TU: 2, WE: 3, TH: 4, FR: 5, SA: 6 };
 
+function toDateKey(date) {
+  return date.toISOString().slice(0, 10); // "YYYY-MM-DD"
+}
+
 function parseRule(rule) {
   const parts = {};
   for (const segment of rule.split(';')) {
@@ -39,12 +43,17 @@ function expandRecurringSession(session, rangeStart, rangeEnd) {
     ? new Date(session.endTime).getTime() - baseStart.getTime()
     : null;
 
+  // Parse excluded dates (stored as ISO date strings like "2026-02-12")
+  const excludedDates = new Set(
+    Array.isArray(session.excludedDates) ? session.excludedDates : []
+  );
+
   const occurrences = [];
 
   if (freq === 'DAILY') {
     let current = new Date(baseStart);
     while (current <= effectiveEnd) {
-      if (current >= rangeStart) {
+      if (current >= rangeStart && !excludedDates.has(toDateKey(current))) {
         occurrences.push(makeOccurrence(session, current, duration));
       }
       current.setDate(current.getDate() + 1);
@@ -66,7 +75,7 @@ function expandRecurringSession(session, rangeStart, rangeEnd) {
         // Set same time as base
         occurrence.setHours(baseStart.getHours(), baseStart.getMinutes(), baseStart.getSeconds());
 
-        if (occurrence >= baseStart && occurrence >= rangeStart && occurrence <= effectiveEnd) {
+        if (occurrence >= baseStart && occurrence >= rangeStart && occurrence <= effectiveEnd && !excludedDates.has(toDateKey(occurrence))) {
           occurrences.push(makeOccurrence(session, occurrence, duration));
         }
       }

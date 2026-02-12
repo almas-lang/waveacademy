@@ -405,6 +405,7 @@ router.put('/:id', async (req, res, next) => {
 router.delete('/:id', async (req, res, next) => {
   try {
     const { id } = req.params;
+    const { deleteMode, occurrenceDate } = req.query;
 
     // Get session details before deleting for notification
     const session = await req.prisma.session.findUnique({
@@ -421,7 +422,25 @@ router.delete('/:id', async (req, res, next) => {
       });
     }
 
-    // Delete the session
+    // For recurring sessions with "single" mode, exclude the date instead of deleting
+    if (session.isRecurring && deleteMode === 'single' && occurrenceDate) {
+      const excludedDates = Array.isArray(session.excludedDates) ? session.excludedDates : [];
+      const dateKey = occurrenceDate.slice(0, 10); // "YYYY-MM-DD"
+      if (!excludedDates.includes(dateKey)) {
+        excludedDates.push(dateKey);
+      }
+      await req.prisma.session.update({
+        where: { id },
+        data: { excludedDates }
+      });
+
+      return res.json({
+        success: true,
+        message: 'Session occurrence removed'
+      });
+    }
+
+    // Delete the entire session (non-recurring, or "all" mode)
     await req.prisma.session.delete({
       where: { id }
     });

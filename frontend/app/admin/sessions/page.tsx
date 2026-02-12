@@ -20,6 +20,7 @@ export default function SessionsPage() {
   const [deletingSession, setDeletingSession] = useState<Session | null>(null);
   const [deleteMode, setDeleteMode] = useState<DeleteMode>('single');
   const [viewMode, setViewMode] = useState<ViewMode>('calendar');
+  const [defaultDate, setDefaultDate] = useState<string | undefined>();
   const [showMonthPicker, setShowMonthPicker] = useState(false);
 
   // Date filter state
@@ -103,14 +104,18 @@ export default function SessionsPage() {
 
   const handleDelete = async () => {
     if (!deletingSession) return;
-    // Pass deleteMode to API for recurring sessions
-    await deleteSession.mutateAsync(deletingSession.id);
+    await deleteSession.mutateAsync({
+      id: deletingSession.id,
+      deleteMode: deletingSession.isRecurring ? deleteMode : undefined,
+      occurrenceDate: deletingSession.isRecurring && deleteMode === 'single' ? deletingSession.startTime : undefined,
+    });
     setDeletingSession(null);
   };
 
   const closeModal = () => {
     setShowModal(false);
     setEditingSession(null);
+    setDefaultDate(undefined);
   };
 
   // Get sessions for a specific day
@@ -403,8 +408,12 @@ export default function SessionsPage() {
                   return (
                     <div
                       key={index}
-                      className={`min-h-[100px] p-2 bg-white ${
-                        !isCurrentMonth ? 'bg-slate-50' : ''
+                      onClick={() => {
+                        setDefaultDate(format(day, 'yyyy-MM-dd'));
+                        setShowModal(true);
+                      }}
+                      className={`min-h-[100px] p-2 bg-white cursor-pointer hover:bg-slate-50 transition-colors ${
+                        !isCurrentMonth ? 'bg-slate-50/70' : ''
                       }`}
                     >
                       <div className={`text-sm font-medium mb-1 ${
@@ -418,7 +427,7 @@ export default function SessionsPage() {
                         {daySessions.slice(0, 3).map((session) => (
                           <button
                             key={session.id}
-                            onClick={() => handlePreview(session)}
+                            onClick={(e) => { e.stopPropagation(); handlePreview(session); }}
                             className="w-full text-left px-2 py-1 text-xs bg-accent-50 text-accent-700 rounded truncate hover:bg-accent-100 transition-colors"
                           >
                             <span className="font-medium">{format(new Date(session.startTime), 'h:mm a')}</span>
@@ -597,6 +606,7 @@ export default function SessionsPage() {
         isOpen={showModal}
         onClose={closeModal}
         session={editingSession}
+        defaultDate={defaultDate}
         onDelete={(session) => {
           closeModal();
           handleDeleteClick(session);

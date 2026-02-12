@@ -151,7 +151,7 @@ export default function LearnerSessionsPage() {
     return (
       <div
         key={session.id}
-        onClick={clickable ? () => setSelectedSession(session) : undefined}
+        onClick={clickable ? () => { setSelectedDay(null); setSelectedSession(session); } : undefined}
         className={`bg-white rounded-xl border shadow-soft p-4 transition-all ${
           clickable ? 'cursor-pointer' : ''
         } ${
@@ -209,7 +209,7 @@ export default function LearnerSessionsPage() {
               onClick={(e) => e.stopPropagation()}
             >
               <Button
-                variant={isLive ? 'primary' : 'secondary'}
+                variant="primary"
                 leftIcon={<Video className="w-4 h-4" />}
                 rightIcon={<ExternalLink className="w-3 h-3" />}
               >
@@ -229,7 +229,7 @@ export default function LearnerSessionsPage() {
       <div key={dateKey}>
         {/* Date Header */}
         <div className="flex items-center gap-3 mb-3">
-          <div className="w-10 h-10 bg-primary-600 rounded-lg flex items-center justify-center">
+          <div className="w-10 h-10 bg-accent-500 rounded-lg flex items-center justify-center">
             <Calendar className="w-5 h-5 text-white" />
           </div>
           <div>
@@ -269,9 +269,9 @@ export default function LearnerSessionsPage() {
         {/* Separator between past and upcoming */}
         {pastDates.length > 0 && upcomingDates.length > 0 && (
           <div className="flex items-center gap-3 py-2">
-            <div className="flex-1 border-t border-primary-200" />
-            <span className="text-sm font-medium text-primary-600 px-2">Upcoming</span>
-            <div className="flex-1 border-t border-primary-200" />
+            <div className="flex-1 border-t border-accent-200" />
+            <span className="text-sm font-medium text-accent-600 px-2">Upcoming</span>
+            <div className="flex-1 border-t border-accent-200" />
           </div>
         )}
 
@@ -295,7 +295,7 @@ export default function LearnerSessionsPage() {
         {!isCurrentMonth && (
           <button
             onClick={goToToday}
-            className="text-sm font-medium text-primary-600 hover:text-primary-700 transition-colors"
+            className="text-sm font-medium text-accent-600 hover:text-accent-700 transition-colors"
           >
             Go to current month
           </button>
@@ -348,7 +348,7 @@ export default function LearnerSessionsPage() {
                             }}
                             className={`px-2 py-1.5 text-sm rounded-lg transition-colors ${
                               currentDate.getMonth() === index
-                                ? 'bg-primary-500 text-white'
+                                ? 'bg-accent-500 text-white'
                                 : 'hover:bg-slate-100 text-slate-700'
                             }`}
                           >
@@ -366,7 +366,7 @@ export default function LearnerSessionsPage() {
                             }}
                             className={`flex-1 px-2 py-1.5 text-sm rounded-lg transition-colors ${
                               currentDate.getFullYear() === y
-                                ? 'bg-primary-500 text-white'
+                                ? 'bg-accent-500 text-white'
                                 : 'hover:bg-slate-100 text-slate-700'
                             }`}
                           >
@@ -388,7 +388,7 @@ export default function LearnerSessionsPage() {
 
               <button
                 onClick={goToToday}
-                className="ml-2 px-3 py-1.5 text-sm font-medium text-slate-600 hover:text-primary-700 hover:bg-slate-100 rounded-lg transition-colors"
+                className="ml-2 px-3 py-1.5 text-sm font-medium text-slate-600 hover:text-accent-600 hover:bg-slate-100 rounded-lg transition-colors"
               >
                 Today
               </button>
@@ -400,8 +400,8 @@ export default function LearnerSessionsPage() {
                 onClick={() => handleViewChange('calendar')}
                 className={`flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
                   viewMode === 'calendar'
-                    ? 'bg-white text-primary-700 shadow-sm'
-                    : 'text-slate-600 hover:text-primary-700'
+                    ? 'bg-white text-accent-600 shadow-sm'
+                    : 'text-slate-600 hover:text-accent-600'
                 }`}
               >
                 <Grid3X3 className="w-4 h-4" />
@@ -411,8 +411,8 @@ export default function LearnerSessionsPage() {
                 onClick={() => handleViewChange('list')}
                 className={`flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
                   viewMode === 'list'
-                    ? 'bg-white text-primary-700 shadow-sm'
-                    : 'text-slate-600 hover:text-primary-700'
+                    ? 'bg-white text-accent-600 shadow-sm'
+                    : 'text-slate-600 hover:text-accent-600'
                 }`}
               >
                 <List className="w-4 h-4" />
@@ -451,7 +451,7 @@ export default function LearnerSessionsPage() {
                         hasSessions ? 'cursor-pointer' : ''
                       } ${
                         isCurrentDay
-                          ? 'bg-primary-50 border-primary-400'
+                          ? 'bg-accent-50 border-accent-400'
                           : isCurrentMonth
                           ? 'bg-white border-slate-100 hover:border-slate-200'
                           : 'bg-slate-50/50 border-transparent'
@@ -459,7 +459,7 @@ export default function LearnerSessionsPage() {
                     >
                       <div className={`text-sm font-medium mb-1 ${
                         isCurrentDay
-                          ? 'text-primary-700'
+                          ? 'text-accent-600'
                           : isCurrentMonth
                           ? 'text-slate-700'
                           : 'text-slate-400'
@@ -475,12 +475,13 @@ export default function LearnerSessionsPage() {
                           return (
                             <div
                               key={session.id}
-                              className={`text-xs px-1.5 py-1 rounded truncate ${
+                              onClick={(e) => { e.stopPropagation(); setSelectedSession(session); }}
+                              className={`text-xs px-1.5 py-1 rounded truncate cursor-pointer hover:opacity-80 ${
                                 isLive
                                   ? 'bg-emerald-500 text-white'
                                   : sessionPassed
                                   ? 'bg-slate-100 text-slate-500'
-                                  : 'bg-primary-100 text-primary-700'
+                                  : 'bg-accent-50 text-accent-700'
                               }`}
                               title={`${session.name} - ${format(new Date(session.startTime), 'h:mm a')}`}
                             >
@@ -490,7 +491,7 @@ export default function LearnerSessionsPage() {
                           );
                         })}
                         {daySessions.length > 3 && (
-                          <div className="text-xs px-1.5 py-0.5 text-primary-600 font-medium">
+                          <div className="text-xs px-1.5 py-0.5 text-accent-600 font-medium">
                             +{daySessions.length - 3} more
                           </div>
                         )}
@@ -538,83 +539,136 @@ export default function LearnerSessionsPage() {
       <Modal
         isOpen={!!selectedSession}
         onClose={() => setSelectedSession(null)}
-        title="Session Details"
+        title=""
         size="md"
       >
-        {selectedSession && (
-          <div className="space-y-4">
-            <div>
-              <h3 className="text-lg font-semibold text-slate-800">{selectedSession.name}</h3>
-              {selectedSession.programName && (
-                <Badge variant="neutral" size="sm" className="mt-1">
-                  {selectedSession.programName}
-                </Badge>
-              )}
-            </div>
+        {selectedSession && (() => {
+          const isLive = isSessionLive(selectedSession.startTime, selectedSession.endTime);
+          const sessionPassed = isPast(new Date(selectedSession.endTime || selectedSession.startTime));
 
-            {selectedSession.description && (
-              <p className="text-slate-600 whitespace-pre-wrap">
-                {selectedSession.description.split(/(https?:\/\/[^\s]+)/g).map((part, i) =>
-                  /^https?:\/\//.test(part) ? (
-                    <a key={i} href={part} target="_blank" rel="noopener noreferrer" className="text-accent-500 hover:underline break-all">{part}</a>
-                  ) : part
+          return (
+            <div className="-mt-2">
+              {/* Header */}
+              <div className="mb-5">
+                <div className="flex items-center gap-2.5 mb-2">
+                  <h2 className="text-xl font-semibold text-slate-800">{selectedSession.name}</h2>
+                  {isLive && (
+                    <div className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-500 rounded-lg">
+                      <Radio className="w-3 h-3 text-white animate-pulse" />
+                      <span className="text-xs font-semibold text-white">LIVE</span>
+                    </div>
+                  )}
+                  {sessionPassed && !isLive && (
+                    <Badge variant="neutral" size="sm">Ended</Badge>
+                  )}
+                </div>
+                {selectedSession.description && (
+                  <p className="text-slate-600 whitespace-pre-wrap leading-relaxed">
+                    {selectedSession.description.split(/(https?:\/\/[^\s]+)/g).map((part, i) =>
+                      /^https?:\/\//.test(part) ? (
+                        <a key={i} href={part} target="_blank" rel="noopener noreferrer" className="text-accent-500 hover:underline break-all">{part}</a>
+                      ) : part
+                    )}
+                  </p>
                 )}
-              </p>
-            )}
-
-            <div className="space-y-2 text-sm">
-              <div className="flex items-center gap-2 text-slate-600">
-                <Calendar className="w-4 h-4 text-slate-400" />
-                {format(new Date(selectedSession.startTime), 'EEEE, MMMM d, yyyy')}
               </div>
-              <div className="flex items-center gap-2 text-slate-600">
-                <Clock className="w-4 h-4 text-slate-400" />
-                {format(new Date(selectedSession.startTime), 'h:mm a')}
-                {selectedSession.endTime && ` – ${format(new Date(selectedSession.endTime), 'h:mm a')}`}
+
+              {/* Details */}
+              <div className="space-y-4 bg-slate-50 rounded-xl p-4 mb-6">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center shadow-sm">
+                    <Calendar className="w-5 h-5 text-accent-500" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-slate-500">Date</p>
+                    <p className="font-medium text-slate-800">
+                      {format(new Date(selectedSession.startTime), 'EEEE, MMMM d, yyyy')}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center shadow-sm">
+                    <Clock className="w-5 h-5 text-accent-500" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-slate-500">Time</p>
+                    <p className="font-medium text-slate-800">
+                      {format(new Date(selectedSession.startTime), 'h:mm a')}
+                      {selectedSession.endTime && ` – ${format(new Date(selectedSession.endTime), 'h:mm a')}`}
+                    </p>
+                  </div>
+                </div>
+
+                {selectedSession.programName && (
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center shadow-sm">
+                      <Calendar className="w-5 h-5 text-accent-500" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-slate-500">Program</p>
+                      <Badge variant="neutral" size="sm">{selectedSession.programName}</Badge>
+                    </div>
+                  </div>
+                )}
+
+                {selectedSession.meetLink && (
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center shadow-sm">
+                      <Video className="w-5 h-5 text-accent-500" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-slate-500">Meeting Link</p>
+                      <a
+                        href={selectedSession.meetLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-medium text-accent-500 hover:text-accent-600 truncate block"
+                      >
+                        {selectedSession.meetLink}
+                      </a>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Live / Ended Banner */}
+              {isLive && (
+                <div className="flex items-center gap-2 p-3 bg-emerald-50 rounded-xl border border-emerald-200 mb-6">
+                  <Radio className="w-4 h-4 text-emerald-500 animate-pulse" />
+                  <span className="text-sm font-medium text-emerald-700">This session is live now</span>
+                </div>
+              )}
+              {sessionPassed && !isLive && (
+                <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 mb-6">
+                  <span className="text-sm text-slate-500">This session has ended</span>
+                </div>
+              )}
+
+              {/* Footer */}
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-200">
+                <Button variant="outline" onClick={() => setSelectedSession(null)}>
+                  Close
+                </Button>
+                {selectedSession.meetLink && !sessionPassed && (
+                  <a
+                    href={selectedSession.meetLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <Button
+                      variant="primary"
+                      leftIcon={<Video className="w-4 h-4" />}
+                      rightIcon={<ExternalLink className="w-3 h-3" />}
+                    >
+                      {isLive ? 'Join Now' : 'Join Meeting'}
+                    </Button>
+                  </a>
+                )}
               </div>
             </div>
-
-            {(() => {
-              const isLive = isSessionLive(selectedSession.startTime, selectedSession.endTime);
-              const sessionPassed = isPast(new Date(selectedSession.endTime || selectedSession.startTime));
-
-              if (isLive) {
-                return (
-                  <div className="flex items-center gap-2 p-3 bg-emerald-50 rounded-lg border border-emerald-200">
-                    <Radio className="w-4 h-4 text-emerald-500 animate-pulse" />
-                    <span className="text-sm font-medium text-emerald-700">This session is live now</span>
-                  </div>
-                );
-              }
-              if (sessionPassed) {
-                return (
-                  <div className="p-3 bg-slate-50 rounded-lg border border-slate-200">
-                    <span className="text-sm text-slate-500">This session has ended</span>
-                  </div>
-                );
-              }
-              return null;
-            })()}
-
-            {selectedSession.meetLink && !isPast(new Date(selectedSession.endTime || selectedSession.startTime)) && (
-              <a
-                href={selectedSession.meetLink}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block"
-              >
-                <Button
-                  variant={isSessionLive(selectedSession.startTime, selectedSession.endTime) ? 'primary' : 'secondary'}
-                  leftIcon={<Video className="w-4 h-4" />}
-                  rightIcon={<ExternalLink className="w-3 h-3" />}
-                  className="w-full justify-center"
-                >
-                  {isSessionLive(selectedSession.startTime, selectedSession.endTime) ? 'Join Now' : 'Join Meeting'}
-                </Button>
-              </a>
-            )}
-          </div>
-        )}
+          );
+        })()}
       </Modal>
     </>
   );

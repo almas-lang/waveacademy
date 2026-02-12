@@ -10,6 +10,7 @@ interface SessionModalProps {
   isOpen: boolean;
   onClose: () => void;
   session?: Session | null;
+  defaultDate?: string; // 'yyyy-MM-dd' format for pre-filling date on create
   onDelete?: (session: Session) => void;
 }
 
@@ -30,7 +31,7 @@ const RECURRENCE_PRESETS = [
   { value: 'custom', label: 'Custom days' },
 ];
 
-export default function SessionModal({ isOpen, onClose, session, onDelete }: SessionModalProps) {
+export default function SessionModal({ isOpen, onClose, session, defaultDate, onDelete }: SessionModalProps) {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [startDate, setStartDate] = useState('');
@@ -103,7 +104,7 @@ export default function SessionModal({ isOpen, onClose, session, onDelete }: Ses
 
         setName('');
         setDescription('');
-        setStartDate(format(now, 'yyyy-MM-dd'));
+        setStartDate(defaultDate || format(now, 'yyyy-MM-dd'));
         setStartTime(format(startDateTime, 'HH:mm'));
         setEndTime(format(endDateTime, 'HH:mm'));
         setMeetLink('');
@@ -116,7 +117,7 @@ export default function SessionModal({ isOpen, onClose, session, onDelete }: Ses
       }
       setErrors({});
     }
-  }, [session, isOpen, programs]);
+  }, [session, isOpen, programs, defaultDate]);
 
   const parseRecurrenceRule = (rule: string) => {
     if (rule.includes('FREQ=DAILY')) {

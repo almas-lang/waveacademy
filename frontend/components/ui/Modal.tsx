@@ -85,7 +85,7 @@ export default function Modal({
                 <button
                   onClick={onClose}
                   aria-label="Close modal"
-                  className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100
+                  className="ml-auto p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100
                            transition-all duration-150 active:scale-90
                            focus:outline-none focus:ring-2 focus:ring-slate-300"
                 >
