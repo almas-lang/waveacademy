@@ -257,7 +257,7 @@ export default function LearnerHomePage() {
                   <Clock className="w-5 h-5 text-blue-500" />
                 </div>
                 <div>
-                  <p className="text-xs text-slate-500 font-medium">Hours Learned</p>
+                  <p className="text-xs text-slate-500 font-medium">Hours Watched</p>
                   <p className="text-xl font-bold text-slate-900">{stats.hoursLearned}</p>
                 </div>
               </div>
