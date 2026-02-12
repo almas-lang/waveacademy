@@ -13,6 +13,7 @@ interface StatsCardProps {
     value: number;
     isPositive: boolean;
   };
+  trendLabel?: string;
   description?: string;
   variant?: 'default' | 'accent';
   href?: string;
@@ -24,6 +25,7 @@ export default function StatsCard({
   value,
   icon,
   trend,
+  trendLabel,
   description,
   variant = 'default',
   href,
@@ -74,7 +76,7 @@ export default function StatsCard({
               )}
               <span>{Math.abs(trend.value)}%</span>
             </div>
-            <span className="text-xs text-slate-500">vs last month</span>
+            <span className="text-xs text-slate-500">{trendLabel || 'vs last period'}</span>
           </div>
         )}
 

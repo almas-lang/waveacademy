@@ -180,6 +180,53 @@ export interface CreateLessonData {
   orderIndex?: number;
 }
 
+// Dashboard Analytics types
+export interface DashboardTrend {
+  value: number;
+  isPositive: boolean;
+}
+
+export interface DashboardStats {
+  totalPrograms: number;
+  totalLearners: number;
+  activeLearners: number;
+  todaySessions: number;
+  overallCompletionRate: number;
+}
+
+export interface DashboardTrends {
+  programs: DashboardTrend;
+  learners: DashboardTrend;
+  activeLearners: DashboardTrend;
+  todaySessions: DashboardTrend;
+}
+
+export interface EnrollmentChartPoint {
+  month: string;
+  enrollments: number;
+}
+
+export interface ProgramPerformanceItem {
+  id: string;
+  name: string;
+  enrollmentCount: number;
+  completionRate: number;
+}
+
+export interface ActivityItem {
+  type: 'enrollment' | 'completion';
+  message: string;
+  timestamp: string;
+}
+
+export interface DashboardAnalytics {
+  stats: DashboardStats;
+  trends: DashboardTrends;
+  enrollmentChart: EnrollmentChartPoint[];
+  programPerformance: ProgramPerformanceItem[];
+  recentActivity: ActivityItem[];
+}
+
 // Filter types
 export interface LearnerFilters {
   status?: UserStatus;

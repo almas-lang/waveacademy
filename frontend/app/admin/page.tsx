@@ -2,21 +2,22 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
-import { BookOpen, Users, Calendar, Clock, Video, ArrowRight, Plus } from 'lucide-react';
-import { AdminHeader, StatsCard } from '@/components/admin';
-import { Button, Badge, PageLoading } from '@/components/ui';
-import { usePrograms, useLearners, useTodaySessions } from '@/hooks';
+import { BookOpen, Users, Calendar, Clock, Video, ArrowRight, Plus, UserPlus, Zap } from 'lucide-react';
+import { AdminHeader, StatsCard, EnrollmentChart, ProgramPerformance, RecentActivity } from '@/components/admin';
+import { Button, PageLoading } from '@/components/ui';
+import { useDashboardAnalytics, useTodaySessions } from '@/hooks';
+import { useAuthStore } from '@/lib/auth-store';
 import { format } from 'date-fns';
 
 export default function AdminDashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const user = useAuthStore((state) => state.user);
 
-  const { data: programs, isLoading: programsLoading } = usePrograms();
-  const { data: learnersData, isLoading: learnersLoading } = useLearners({ limit: 1 });
+  const { data: analytics, isLoading: analyticsLoading } = useDashboardAnalytics();
   const { data: todaySessions, isLoading: sessionsLoading } = useTodaySessions();
 
-  const isLoading = programsLoading || learnersLoading || sessionsLoading;
+  const isLoading = analyticsLoading || sessionsLoading;
+  const firstName = user?.name?.split(' ')[0] || 'Admin';
 
   if (isLoading) {
     return (
@@ -27,59 +28,84 @@ export default function AdminDashboard() {
     );
   }
 
-  const totalPrograms = programs?.length || 0;
-  const publishedPrograms = programs?.filter(p => p.isPublished).length || 0;
-  const totalLearners = learnersData?.pagination.total || 0;
-  const todaySessionsCount = todaySessions?.length || 0;
+  const stats = analytics?.stats;
+  const trends = analytics?.trends;
 
   return (
     <>
       <AdminHeader
         title="Dashboard"
-        subtitle="Welcome back! Here's what's happening today."
+        subtitle={`Welcome back, ${firstName}!`}
         onMenuClick={() => setSidebarOpen(true)}
       />
 
       <div className="flex-1 p-6 lg:p-8">
+        {/* Quick Actions */}
+        <div className="flex flex-wrap gap-3 mb-6">
+          <Link href="/admin/programs">
+            <Button variant="outline" size="sm" leftIcon={<Plus className="w-4 h-4" />}>
+              Create Program
+            </Button>
+          </Link>
+          <Link href="/admin/learners">
+            <Button variant="outline" size="sm" leftIcon={<UserPlus className="w-4 h-4" />}>
+              Add Learner
+            </Button>
+          </Link>
+          <Link href="/admin/sessions">
+            <Button variant="outline" size="sm" leftIcon={<Calendar className="w-4 h-4" />}>
+              Schedule Session
+            </Button>
+          </Link>
+        </div>
+
         {/* Stats Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 mb-8">
           <StatsCard
             title="Total Programs"
-            value={totalPrograms}
+            value={stats?.totalPrograms ?? 0}
             icon={<BookOpen className="w-5 h-5" />}
-            description="Courses created"
+            trend={trends?.programs}
+            trendLabel="vs last month"
             href="/admin/programs"
           />
           <StatsCard
-            title="Published"
-            value={publishedPrograms}
-            icon={<BookOpen className="w-5 h-5" />}
+            title="Active Learners"
+            value={stats?.activeLearners ?? 0}
+            icon={<Zap className="w-5 h-5" />}
             variant="accent"
-            description="Live programs"
-            href="/admin/programs?status=published"
+            trend={trends?.activeLearners}
+            trendLabel="vs last week"
           />
           <StatsCard
             title="Total Learners"
-            value={totalLearners}
+            value={stats?.totalLearners ?? 0}
             icon={<Users className="w-5 h-5" />}
-            description="Enrolled students"
+            trend={trends?.learners}
+            trendLabel="vs last month"
             href="/admin/learners"
           />
           <StatsCard
             title="Today's Sessions"
-            value={todaySessionsCount}
+            value={stats?.todaySessions ?? 0}
             icon={<Calendar className="w-5 h-5" />}
-            description="Scheduled meetings"
+            trend={trends?.todaySessions}
+            trendLabel="vs yesterday"
             href="/admin/sessions"
           />
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
+        {/* Row 2: Enrollment Chart + Today's Sessions */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8 mb-8">
+          <div className="lg:col-span-2">
+            <EnrollmentChart data={analytics?.enrollmentChart ?? []} />
+          </div>
+
           {/* Today's Sessions */}
           <div className="bg-white rounded-xl border border-slate-200/80 shadow-soft overflow-hidden">
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
               <div>
-                <h2 className="text-base font-semibold text-slate-900">Today's Sessions</h2>
+                <h2 className="text-base font-semibold text-slate-900">Today&apos;s Sessions</h2>
                 <p className="text-xs text-slate-500 mt-0.5">Live classes and meetings</p>
               </div>
               <Link href="/admin/sessions">
@@ -127,7 +153,7 @@ export default function AdminDashboard() {
                   {todaySessions.length > 3 && (
                     <Link href="/admin/sessions" className="block">
                       <div className="text-center py-2.5 text-sm font-medium text-slate-500 hover:text-accent-500 transition-colors">
-                        +{todaySessions.length - 3} more sessions →
+                        +{todaySessions.length - 3} more sessions
                       </div>
                     </Link>
                   )}
@@ -143,85 +169,16 @@ export default function AdminDashboard() {
               )}
             </div>
           </div>
-
-          {/* Recent Programs */}
-          <div className="bg-white rounded-xl border border-slate-200/80 shadow-soft overflow-hidden">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
-              <div>
-                <h2 className="text-base font-semibold text-slate-900">Recent Programs</h2>
-                <p className="text-xs text-slate-500 mt-0.5">Your latest courses</p>
-              </div>
-              <Link href="/admin/programs">
-                <Button variant="ghost" size="sm" rightIcon={<ArrowRight className="w-4 h-4" />}>
-                  View All
-                </Button>
-              </Link>
-            </div>
-
-            <div className="p-4">
-              {programs && programs.length > 0 ? (
-                <div className="space-y-3">
-                  {programs.slice(0, 3).map((program, index) => (
-                    <Link
-                      key={program.id}
-                      href={`/admin/programs/${program.id}`}
-                      className="flex items-center justify-between p-3.5 bg-slate-50/80 rounded-lg border border-slate-100 hover:bg-slate-50 hover:border-slate-200 transition-all group"
-                      style={{ animationDelay: `${index * 50}ms` }}
-                    >
-                      <div className="flex items-center gap-3.5">
-                        {program.thumbnailUrl ? (
-                          <Image
-                            src={program.thumbnailUrl}
-                            alt={program.name}
-                            width={40}
-                            height={40}
-                            className="w-10 h-10 rounded-lg object-cover"
-                          />
-                        ) : (
-                          <div className="w-10 h-10 bg-slate-200 rounded-lg flex items-center justify-center">
-                            <BookOpen className="w-4 h-4 text-slate-500" />
-                          </div>
-                        )}
-                        <div>
-                          <p className="font-medium text-slate-900 text-sm group-hover:text-accent-600 transition-colors">
-                            {program.name}
-                          </p>
-                          <p className="text-xs text-slate-500 mt-0.5">
-                            {program.lessonCount} lessons • {program.learnerCount} learners
-                          </p>
-                        </div>
-                      </div>
-                      <Badge variant={program.isPublished ? 'success' : 'neutral'} dot>
-                        {program.isPublished ? 'Published' : 'Draft'}
-                      </Badge>
-                    </Link>
-                  ))}
-                  {programs.length > 3 && (
-                    <Link href="/admin/programs" className="block">
-                      <div className="text-center py-2.5 text-sm font-medium text-slate-500 hover:text-accent-500 transition-colors">
-                        +{programs.length - 3} more programs →
-                      </div>
-                    </Link>
-                  )}
-                </div>
-              ) : (
-                <div className="text-center py-12">
-                  <div className="w-14 h-14 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <BookOpen className="w-6 h-6 text-slate-400" />
-                  </div>
-                  <p className="text-slate-600 font-medium mb-1">No programs yet</p>
-                  <p className="text-sm text-slate-400 mb-4">Create your first course</p>
-                  <Link href="/admin/programs">
-                    <Button variant="primary" size="sm" leftIcon={<Plus className="w-4 h-4" />}>
-                      Create Program
-                    </Button>
-                  </Link>
-                </div>
-              )}
-            </div>
-          </div>
         </div>
 
+        {/* Row 3: Program Performance + Recent Activity */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
+          <ProgramPerformance
+            programs={analytics?.programPerformance ?? []}
+            overallCompletionRate={stats?.overallCompletionRate ?? 0}
+          />
+          <RecentActivity activities={analytics?.recentActivity ?? []} />
+        </div>
       </div>
     </>
   );

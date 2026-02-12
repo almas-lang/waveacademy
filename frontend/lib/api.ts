@@ -93,6 +93,11 @@ export const adminApi = {
     return response.data;
   },
 
+  getDashboardAnalytics: async () => {
+    const response = await api.get('/admin/dashboard/analytics');
+    return response.data;
+  },
+
   // Programs
   getPrograms: async (params?: { page?: number; limit?: number; all?: boolean }) => {
     const response = await api.get('/admin/programs', { params });
