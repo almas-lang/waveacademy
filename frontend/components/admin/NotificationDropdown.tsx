@@ -13,12 +13,19 @@ export default function NotificationDropdown() {
   const buttonRef = useRef<HTMLButtonElement>(null);
 
   const { data: unreadData } = useUnreadCount();
-  const { data: notificationsData, isLoading } = useNotifications({ limit: 10 });
+  const { data: notificationsData, isLoading, refetch } = useNotifications({ limit: 10 });
   const markAsRead = useMarkAsRead();
   const markAllAsRead = useMarkAllAsRead();
 
   const unreadCount = unreadData?.unreadCount || 0;
   const notifications = notificationsData?.notifications || [];
+
+  // Refetch notifications list when dropdown opens
+  useEffect(() => {
+    if (isOpen) {
+      refetch();
+    }
+  }, [isOpen, refetch]);
 
   // Close on outside click
   useEffect(() => {

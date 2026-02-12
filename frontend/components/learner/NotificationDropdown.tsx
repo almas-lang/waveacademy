@@ -13,7 +13,7 @@ export default function NotificationDropdown() {
   const buttonRef = useRef<HTMLButtonElement>(null);
 
   const { data: unreadData, error: unreadError } = useUnreadCount();
-  const { data: notificationsData, isLoading, error: notificationsError } = useNotifications({ limit: 10 });
+  const { data: notificationsData, isLoading, error: notificationsError, refetch } = useNotifications({ limit: 10 });
   const markAsRead = useMarkAsRead();
   const markAllAsRead = useMarkAllAsRead();
 
@@ -23,6 +23,13 @@ export default function NotificationDropdown() {
   // Log errors for debugging
   if (unreadError) console.error('Unread count error:', unreadError);
   if (notificationsError) console.error('Notifications error:', notificationsError);
+
+  // Refetch notifications list when dropdown opens
+  useEffect(() => {
+    if (isOpen) {
+      refetch();
+    }
+  }, [isOpen, refetch]);
 
   // Close on outside click
   useEffect(() => {
