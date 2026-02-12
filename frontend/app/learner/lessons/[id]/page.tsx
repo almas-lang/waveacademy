@@ -52,7 +52,8 @@ function getFileIcon(name: string) {
 }
 
 function LessonSkeleton({ type }: { type?: string }) {
-  const isVideo = !type || type === 'VIDEO';
+  const isVideo = type === 'VIDEO';
+  const isPdf = type === 'PDF';
   return (
     <div className="flex-1">
       {/* Nav bar skeleton */}
@@ -70,13 +71,17 @@ function LessonSkeleton({ type }: { type?: string }) {
       {/* Content area skeleton */}
       <div className={isVideo ? "px-4 lg:px-6 py-6 bg-slate-50" : "max-w-6xl mx-auto px-4 lg:px-6 py-6"}>
         <div className="bg-slate-200 rounded-xl overflow-hidden" style={{ paddingTop: isVideo ? '56.25%' : '60%', position: 'relative' }}>
-          {isVideo && (
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="w-14 h-14 rounded-full bg-white/60 flex items-center justify-center animate-pulse shadow-sm">
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="w-14 h-14 rounded-full bg-white/60 flex items-center justify-center animate-pulse shadow-sm">
+              {isPdf ? (
+                <FileText className="w-6 h-6 text-slate-400" />
+              ) : isVideo ? (
                 <Play className="w-6 h-6 text-slate-400 ml-0.5" />
-              </div>
+              ) : (
+                <BookOpen className="w-6 h-6 text-slate-400" />
+              )}
             </div>
-          )}
+          </div>
         </div>
       </div>
 
