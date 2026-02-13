@@ -51,13 +51,75 @@ router.get('/home', async (req, res, next) => {
         orderBy: { lastAccessedAt: 'desc' }
       });
 
+      // Build a set of completed lesson IDs for quick lookup
+      const completedLessonIds = new Set(
+        progress.filter(p => p.status === 'COMPLETED').map(p => p.lesson.id)
+      );
+
+      // For each program, get the content tree and find the first uncompleted lesson in course order
+      const programTrees = await Promise.all(
+        enrollments.map(e =>
+          req.prisma.program.findUnique({
+            where: { id: e.programId },
+            include: {
+              topics: {
+                include: {
+                  subtopics: {
+                    include: {
+                      lessons: { orderBy: { orderIndex: 'asc' }, select: { id: true, orderIndex: true } }
+                    },
+                    orderBy: { orderIndex: 'asc' }
+                  },
+                  lessons: {
+                    where: { subtopicId: null },
+                    orderBy: { orderIndex: 'asc' },
+                    select: { id: true, orderIndex: true }
+                  }
+                },
+                orderBy: { orderIndex: 'asc' }
+              },
+              lessons: {
+                where: { topicId: null, subtopicId: null },
+                orderBy: { orderIndex: 'asc' },
+                select: { id: true, orderIndex: true }
+              }
+            }
+          })
+        )
+      );
+
+      // Helper: flatten content tree into ordered lesson IDs
+      function flattenLessons(program) {
+        const lessons = [];
+        if (!program) return lessons;
+        for (const topic of program.topics) {
+          const children = [
+            ...topic.subtopics.map(s => ({ type: 'subtopic', orderIndex: s.orderIndex, lessons: s.lessons })),
+            ...topic.lessons.map(l => ({ type: 'lesson', orderIndex: l.orderIndex, lesson: l }))
+          ].sort((a, b) => a.orderIndex - b.orderIndex);
+          for (const child of children) {
+            if (child.type === 'subtopic') {
+              lessons.push(...child.lessons.map(l => l.id));
+            } else {
+              lessons.push(child.lesson.id);
+            }
+          }
+        }
+        lessons.push(...program.lessons.map(l => l.id));
+        return lessons;
+      }
+
       // Calculate program progress
-      const enrolledPrograms = enrollments.map(enrollment => {
+      const enrolledPrograms = enrollments.map((enrollment, i) => {
         const programProgress = progress.filter(
           p => p.lesson.programId === enrollment.programId
         );
         const completedCount = programProgress.filter(p => p.status === 'COMPLETED').length;
         const totalLessons = enrollment.program._count.lessons;
+
+        // Find first uncompleted lesson in course order
+        const orderedLessonIds = flattenLessons(programTrees[i]);
+        const nextLessonId = orderedLessonIds.find(id => !completedLessonIds.has(id)) || null;
 
         return {
           id: enrollment.program.id,
@@ -67,7 +129,8 @@ router.get('/home', async (req, res, next) => {
           completedLessons: completedCount,
           totalLessons,
           progressPercentage: totalLessons > 0 ? Math.round((completedCount / totalLessons) * 100) : 0,
-          lastAccessedAt: programProgress[0]?.lastAccessedAt || enrollment.enrolledAt
+          lastAccessedAt: programProgress[0]?.lastAccessedAt || enrollment.enrolledAt,
+          nextLessonId
         };
       });
 
@@ -376,6 +439,9 @@ router.get('/lessons/:id', async (req, res, next) => {
       where: { id: progress.id },
       data: { lastAccessedAt: new Date() }
     });
+
+    // Bust home cache so "Continue Learning" reflects this lesson
+    await cacheDel(`learner:home:${userId}`);
 
     // Generate signed video URL if video
     let contentUrl = lesson.contentUrl;

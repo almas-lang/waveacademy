@@ -38,7 +38,9 @@ export default function LearnerProgramsPage() {
             {programs.map((program) => (
               <Link
                 key={program.id}
-                href={`/learner/programs/${program.id}`}
+                href={program.nextLessonId
+                  ? `/learner/lessons/${program.nextLessonId}`
+                  : `/learner/programs/${program.id}`}
                 className="group bg-white rounded-xl border border-slate-200/80 shadow-soft overflow-hidden hover:shadow-elevated hover:border-slate-300 transition-all duration-200"
               >
                 {/* Thumbnail */}

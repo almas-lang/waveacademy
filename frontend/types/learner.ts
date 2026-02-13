@@ -36,6 +36,7 @@ export interface EnrolledProgram {
   totalLessons: number;
   progressPercentage: number;
   lastAccessedAt?: string;
+  nextLessonId?: string | null;
 }
 
 export interface UpcomingSession {

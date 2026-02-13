@@ -336,7 +336,9 @@ export default function LearnerHomePage() {
               {data.enrolledPrograms.map((program, index) => (
                 <Link
                   key={program.id}
-                  href={`/learner/programs/${program.id}`}
+                  href={program.nextLessonId
+                    ? `/learner/lessons/${program.nextLessonId}`
+                    : `/learner/programs/${program.id}`}
                   className="group bg-white rounded-xl border border-slate-200/80 shadow-soft overflow-hidden hover:shadow-elevated hover:border-slate-300 transition-all duration-200 animate-slide-up opacity-0 [animation-fill-mode:forwards]"
                   style={{ animationDelay: `${100 + index * 75}ms` }}
                 >
