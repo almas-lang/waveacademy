@@ -6,6 +6,7 @@ import { AdminHeader, StatsCard, EnrollmentChart, DailyActiveUsersChart, Program
 import { Button } from '@/components/ui';
 import { useDashboardAnalytics, useTodaySessions } from '@/hooks';
 import { useAuthStore } from '@/lib/auth-store';
+import { useSidebar } from '@/lib/sidebar-context';
 import { format } from 'date-fns';
 
 function getGreeting(): string {
@@ -77,6 +78,7 @@ function DashboardSkeleton() {
 }
 
 export default function AdminDashboard() {
+  const { openSidebar } = useSidebar();
   const user = useAuthStore((state) => state.user);
 
   const { data: analytics, isLoading: analyticsLoading } = useDashboardAnalytics();
@@ -88,7 +90,7 @@ export default function AdminDashboard() {
   if (isLoading) {
     return (
       <>
-        <AdminHeader title="Dashboard" subtitle={`${getGreeting()}, ${firstName}!`} />
+        <AdminHeader title="Dashboard" subtitle={`${getGreeting()}, ${firstName}!`} onMenuClick={openSidebar} />
         <DashboardSkeleton />
       </>
     );
@@ -102,6 +104,7 @@ export default function AdminDashboard() {
       <AdminHeader
         title="Dashboard"
         subtitle={`${getGreeting()}, ${firstName}!`}
+        onMenuClick={openSidebar}
       />
 
       <div className="flex-1 p-6 lg:p-8">

@@ -4,6 +4,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { BookOpen, Calendar, Clock, Play, ArrowRight, CheckCircle, Sparkles, Flame, GraduationCap, Timer, Zap } from 'lucide-react';
 import { LearnerHeader } from '@/components/learner';
+import { useSidebar } from '@/lib/sidebar-context';
 import { Button, Badge } from '@/components/ui';
 import { useLearnerHome } from '@/hooks/useLearnerData';
 import { format } from 'date-fns';
@@ -86,7 +87,7 @@ function DashboardSkeleton() {
       </div>
 
       {/* Stats row skeleton */}
-      <div className="grid grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         {[1, 2, 3].map(i => (
           <div key={i} className="bg-white rounded-xl border border-slate-200/80 shadow-soft p-4">
             <div className="flex items-center gap-3">
@@ -150,12 +151,13 @@ function DashboardSkeleton() {
 }
 
 export default function LearnerHomePage() {
+  const { openSidebar } = useSidebar();
   const { data, isLoading } = useLearnerHome();
 
   if (isLoading) {
     return (
       <>
-        <LearnerHeader title="Home" />
+        <LearnerHeader title="Home" onMenuClick={openSidebar} />
         <DashboardSkeleton />
       </>
     );
@@ -179,6 +181,7 @@ export default function LearnerHomePage() {
       <LearnerHeader
         title="Home"
         subtitle="Your learning dashboard"
+        onMenuClick={openSidebar}
       />
 
       <div className="flex-1 p-6 lg:p-8">
@@ -237,7 +240,7 @@ export default function LearnerHomePage() {
 
         {/* Learning Stats Row */}
         {hasPrograms && stats && (
-          <div className="grid grid-cols-3 gap-4 mb-6 animate-slide-up opacity-0 [animation-fill-mode:forwards]">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6 animate-slide-up opacity-0 [animation-fill-mode:forwards]">
             <div className="bg-white rounded-xl border border-slate-200/80 shadow-soft p-4 hover:shadow-elevated transition-shadow">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-emerald-50 rounded-lg flex items-center justify-center">

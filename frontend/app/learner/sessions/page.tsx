@@ -3,6 +3,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { Calendar, Clock, Video, ExternalLink, Radio, ChevronLeft, ChevronRight, List, Grid3X3, ChevronDown } from 'lucide-react';
 import { LearnerHeader } from '@/components/learner';
+import { useSidebar } from '@/lib/sidebar-context';
 import { Button, Badge, PageLoading, Modal } from '@/components/ui';
 import { useLearnerSessionsCalendar } from '@/hooks/useLearnerData';
 import { UpcomingSession } from '@/types/learner';
@@ -33,7 +34,7 @@ function getStoredView(): ViewMode {
 }
 
 export default function LearnerSessionsPage() {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { openSidebar } = useSidebar();
   const [viewMode, setViewMode] = useState<ViewMode>('calendar');
   const [currentDate, setCurrentDate] = useState(new Date());
   const [showMonthPicker, setShowMonthPicker] = useState(false);
@@ -97,7 +98,7 @@ export default function LearnerSessionsPage() {
   if (isLoading) {
     return (
       <>
-        <LearnerHeader title="Sessions" onMenuClick={() => setSidebarOpen(true)} />
+        <LearnerHeader title="Sessions" onMenuClick={openSidebar} />
         <PageLoading />
       </>
     );
@@ -309,7 +310,7 @@ export default function LearnerSessionsPage() {
       <LearnerHeader
         title="Sessions"
         subtitle={`${totalSessions} session${totalSessions !== 1 ? 's' : ''} this month${liveSessions > 0 ? ` · ${liveSessions} live now` : ''}`}
-        onMenuClick={() => setSidebarOpen(true)}
+        onMenuClick={openSidebar}
       />
 
       <div className="flex-1 p-6 lg:p-8">

@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuthStore } from '@/lib/auth-store';
 import { AdminSidebar } from '@/components/admin';
 import { PageLoading } from '@/components/ui/LoadingSpinner';
+import { SidebarProvider } from '@/lib/sidebar-context';
 
 export default function AdminLayout({
   children,
@@ -15,6 +16,7 @@ export default function AdminLayout({
   const pathname = usePathname();
   const { isAuthenticated, user } = useAuthStore();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const openSidebar = useCallback(() => setSidebarOpen(true), []);
   const [isChecking, setIsChecking] = useState(true);
   const [isHydrated, setIsHydrated] = useState(false);
 
@@ -65,7 +67,9 @@ export default function AdminLayout({
         onClose={() => setSidebarOpen(false)}
       />
       <main className="flex-1 flex flex-col min-w-0 overflow-y-auto overflow-x-hidden">
-        {children}
+        <SidebarProvider onOpen={openSidebar}>
+          {children}
+        </SidebarProvider>
       </main>
     </div>
   );

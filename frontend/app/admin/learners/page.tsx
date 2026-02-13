@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Plus, Search, Eye, Mail, UserCheck, UserX } from 'lucide-react';
 import { AdminHeader } from '@/components/admin';
+import { useSidebar } from '@/lib/sidebar-context';
 import LearnerModal from '@/components/admin/LearnerModal';
 import { Button, Badge, Table, PageLoading, Pagination, getStatusVariant, formatStatus, DropdownMenu, DropdownItem, DropdownDivider } from '@/components/ui';
 import { useLearners, usePrograms, useUpdateLearnerStatus, useResetLearnerPassword } from '@/hooks';
@@ -10,7 +11,7 @@ import { Learner, LearnerFilters, UserStatus } from '@/types/admin';
 import { format } from 'date-fns';
 
 export default function LearnersPage() {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { openSidebar } = useSidebar();
   const [showModal, setShowModal] = useState(false);
   const [filters, setFilters] = useState<LearnerFilters>({
     page: 1,
@@ -162,7 +163,7 @@ export default function LearnersPage() {
       <AdminHeader
         title="Learners"
         subtitle="Manage your learners and their enrollments"
-        onMenuClick={() => setSidebarOpen(true)}
+        onMenuClick={openSidebar}
       />
 
       <div className="flex-1 p-6 lg:p-8">

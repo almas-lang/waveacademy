@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { Plus, BookOpen, Eye, Edit, Trash2, Globe, Lock } from 'lucide-react';
 import { AdminHeader } from '@/components/admin';
+import { useSidebar } from '@/lib/sidebar-context';
 import ProgramModal from '@/components/admin/ProgramModal';
 import { Button, Badge, Table, EmptyState, Modal, Pagination, DropdownMenu, DropdownItem, DropdownDivider, InlineLoading } from '@/components/ui';
 import { useProgramsPaginated, useDeleteProgram, useTogglePublish } from '@/hooks';
@@ -13,7 +14,7 @@ import { format } from 'date-fns';
 
 export default function ProgramsPage() {
   const router = useRouter();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { openSidebar } = useSidebar();
   const [showModal, setShowModal] = useState(false);
   const [editingProgram, setEditingProgram] = useState<Program | null>(null);
   const [deletingProgram, setDeletingProgram] = useState<Program | null>(null);
@@ -161,7 +162,7 @@ export default function ProgramsPage() {
       <AdminHeader
         title="Programs"
         subtitle="Manage your programs and learning content"
-        onMenuClick={() => setSidebarOpen(true)}
+        onMenuClick={openSidebar}
       />
 
       <div className="flex-1 p-6 lg:p-8">

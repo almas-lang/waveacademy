@@ -20,6 +20,7 @@ import {
   LogOut,
 } from 'lucide-react';
 import { AdminHeader } from '@/components/admin';
+import { useSidebar } from '@/lib/sidebar-context';
 import { Button, Badge, PageLoading, Modal, Select, getStatusVariant, formatStatus } from '@/components/ui';
 import { useLearner, usePrograms, useUpdateLearnerStatus, useResetLearnerPassword, useEnrollLearner, useUpdateLearner, useUnenrollLearner, useLearnerSessions, useLogoutLearnerAllDevices } from '@/hooks';
 import { format } from 'date-fns';
@@ -29,7 +30,7 @@ export default function LearnerDetailPage() {
   const router = useRouter();
   const learnerId = params.id as string;
 
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { openSidebar } = useSidebar();
   const [showEnrollModal, setShowEnrollModal] = useState(false);
   const [selectedProgramId, setSelectedProgramId] = useState('');
   const [isEditing, setIsEditing] = useState(false);
@@ -49,7 +50,7 @@ export default function LearnerDetailPage() {
   if (isLoading) {
     return (
       <>
-        <AdminHeader title="Learner Details" onMenuClick={() => setSidebarOpen(true)} />
+        <AdminHeader title="Learner Details" onMenuClick={openSidebar} />
         <PageLoading />
       </>
     );
@@ -58,7 +59,7 @@ export default function LearnerDetailPage() {
   if (!data) {
     return (
       <>
-        <AdminHeader title="Learner Details" onMenuClick={() => setSidebarOpen(true)} />
+        <AdminHeader title="Learner Details" onMenuClick={openSidebar} />
         <div className="flex-1 p-6 lg:p-8">
           <div className="text-center py-12">
             <p className="text-slate-500">Learner not found</p>
@@ -130,7 +131,7 @@ export default function LearnerDetailPage() {
 
   return (
     <>
-      <AdminHeader title="Learner Details" onMenuClick={() => setSidebarOpen(true)} />
+      <AdminHeader title="Learner Details" onMenuClick={openSidebar} />
 
       <div className="flex-1 p-6 lg:p-8">
         {/* Back Button */}

@@ -21,6 +21,7 @@ import {
   X,
 } from 'lucide-react';
 import { AdminHeader } from '@/components/admin';
+import { useSidebar } from '@/lib/sidebar-context';
 import ProgramModal from '@/components/admin/ProgramModal';
 import ContentTree from '@/components/admin/ContentTree';
 import { Button, Badge, PageLoading, Modal, LoadingSpinner, Input } from '@/components/ui';
@@ -32,7 +33,7 @@ export default function ProgramDetailPage() {
   const router = useRouter();
   const programId = params.id as string;
 
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { openSidebar } = useSidebar();
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showAddLearnerModal, setShowAddLearnerModal] = useState(false);
@@ -89,7 +90,7 @@ export default function ProgramDetailPage() {
   if (isLoading) {
     return (
       <>
-        <AdminHeader title="Program Details" onMenuClick={() => setSidebarOpen(true)} />
+        <AdminHeader title="Program Details" onMenuClick={openSidebar} />
         <PageLoading />
       </>
     );
@@ -98,7 +99,7 @@ export default function ProgramDetailPage() {
   if (!data) {
     return (
       <>
-        <AdminHeader title="Program Details" onMenuClick={() => setSidebarOpen(true)} />
+        <AdminHeader title="Program Details" onMenuClick={openSidebar} />
         <div className="flex-1 p-6 lg:p-8">
           <div className="bg-white rounded-xl border border-slate-200/80 shadow-soft">
             <div className="text-center py-20">
@@ -166,7 +167,7 @@ export default function ProgramDetailPage() {
       <AdminHeader
         title={program.name}
         subtitle="Program details and content management"
-        onMenuClick={() => setSidebarOpen(true)}
+        onMenuClick={openSidebar}
       />
 
       <div className="flex-1 p-6 lg:p-8">

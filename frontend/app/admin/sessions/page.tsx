@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Plus, Calendar as CalendarIcon, Clock, Video, Edit, Trash2, ExternalLink, RefreshCw, ChevronLeft, ChevronRight, List, Grid3X3, X, MapPin, Users } from 'lucide-react';
 import { AdminHeader } from '@/components/admin';
+import { useSidebar } from '@/lib/sidebar-context';
 import SessionModal from '@/components/admin/SessionModal';
 import { Button, Badge, Table, PageLoading, Modal, DropdownMenu, DropdownItem, DropdownDivider } from '@/components/ui';
 import { useSessions, usePrograms, useDeleteSession } from '@/hooks';
@@ -13,7 +14,7 @@ type ViewMode = 'calendar' | 'list';
 type DeleteMode = 'single' | 'all';
 
 export default function SessionsPage() {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { openSidebar } = useSidebar();
   const [showModal, setShowModal] = useState(false);
   const [editingSession, setEditingSession] = useState<Session | null>(null);
   const [previewSession, setPreviewSession] = useState<Session | null>(null);
@@ -241,7 +242,7 @@ export default function SessionsPage() {
       <AdminHeader
         title="Sessions"
         subtitle="Schedule and manage live sessions for your learners"
-        onMenuClick={() => setSidebarOpen(true)}
+        onMenuClick={openSidebar}
       />
 
       <div className="flex-1 p-6 lg:p-8">

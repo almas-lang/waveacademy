@@ -4,13 +4,14 @@ import { useState, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, KeyRound, Eye, EyeOff, ShieldCheck } from 'lucide-react';
 import { LearnerHeader } from '@/components/learner';
+import { useSidebar } from '@/lib/sidebar-context';
 import { Button, Input } from '@/components/ui';
 import { authApi } from '@/lib/api';
 import toast from 'react-hot-toast';
 
 export default function ChangePasswordPage() {
   const router = useRouter();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { openSidebar } = useSidebar();
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -57,7 +58,7 @@ export default function ChangePasswordPage() {
       <LearnerHeader
         title="Change Password"
         subtitle="Update your account password"
-        onMenuClick={() => setSidebarOpen(true)}
+        onMenuClick={openSidebar}
       />
 
       <div className="flex-1 p-6 lg:p-8">

@@ -3,12 +3,14 @@
 import { useState } from 'react';
 import { Eye, EyeOff, Lock, User, Mail } from 'lucide-react';
 import { AdminHeader } from '@/components/admin';
+import { useSidebar } from '@/lib/sidebar-context';
 import { Button } from '@/components/ui';
 import { authApi } from '@/lib/api';
 import { useAuthStore } from '@/lib/auth-store';
 import toast from 'react-hot-toast';
 
 export default function AdminSettingsPage() {
+  const { openSidebar } = useSidebar();
   const user = useAuthStore((state) => state.user);
 
   const [currentPassword, setCurrentPassword] = useState('');
@@ -61,7 +63,7 @@ export default function AdminSettingsPage() {
       <AdminHeader
         title="Settings"
         subtitle="Manage your account settings"
-        onMenuClick={() => {}}
+        onMenuClick={openSidebar}
       />
 
       <div className="flex-1 p-6 lg:p-8">

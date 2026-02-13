@@ -19,6 +19,7 @@ import {
   File,
 } from 'lucide-react';
 import { LearnerHeader } from '@/components/learner';
+import { useSidebar } from '@/lib/sidebar-context';
 import { Button, Badge } from '@/components/ui';
 import { useLearnerLesson, useCompleteLesson, useUpdateLessonProgress, learnerKeys } from '@/hooks/useLearnerData';
 import { useQueryClient } from '@tanstack/react-query';
@@ -106,7 +107,7 @@ export default function LessonViewerPage() {
   const lessonId = params.id as string;
   const lessonType = searchParams.get('type') || undefined;
   const programNameHint = searchParams.get('program') || '';
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { openSidebar } = useSidebar();
   const [showCompletionCelebration, setShowCompletionCelebration] = useState(false);
 
   // Scroll to top when navigating to a lesson
@@ -184,7 +185,7 @@ export default function LessonViewerPage() {
   if (isLoading) {
     return (
       <>
-        <LearnerHeader title="loading..." onMenuClick={() => setSidebarOpen(true)} />
+        <LearnerHeader title="loading..." onMenuClick={openSidebar} />
         <LessonSkeleton type={lessonType} />
       </>
     );
@@ -193,7 +194,7 @@ export default function LessonViewerPage() {
   if (!data) {
     return (
       <>
-        <LearnerHeader title="loading..." onMenuClick={() => setSidebarOpen(true)} />
+        <LearnerHeader title="loading..." onMenuClick={openSidebar} />
         <div className="flex-1 p-6 lg:p-8">
           <div className="bg-white rounded-xl border border-slate-200/80 shadow-soft">
             <div className="text-center py-20">
@@ -222,7 +223,7 @@ export default function LessonViewerPage() {
     <>
       <LearnerHeader
         title={program.name}
-        onMenuClick={() => setSidebarOpen(true)}
+        onMenuClick={openSidebar}
       />
 
       <div className="flex-1">

@@ -7,6 +7,7 @@ import {
   Hash, Award, KeyRound, LogOut, ChevronRight, Info, Trophy,
 } from 'lucide-react';
 import { LearnerHeader } from '@/components/learner';
+import { useSidebar } from '@/lib/sidebar-context';
 import { Badge, Button, Modal, PageLoading } from '@/components/ui';
 import { useLearnerProfile } from '@/hooks/useLearnerData';
 import { authApi } from '@/lib/api';
@@ -63,7 +64,7 @@ const programColors = [
 
 export default function LearnerProfilePage() {
   const router = useRouter();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { openSidebar } = useSidebar();
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
   const { data: profile, isLoading } = useLearnerProfile();
@@ -72,7 +73,7 @@ export default function LearnerProfilePage() {
   if (isLoading) {
     return (
       <>
-        <LearnerHeader title="Profile" onMenuClick={() => setSidebarOpen(true)} />
+        <LearnerHeader title="Profile" onMenuClick={openSidebar} />
         <PageLoading />
       </>
     );
@@ -108,7 +109,7 @@ export default function LearnerProfilePage() {
       <LearnerHeader
         title="Profile"
         subtitle="Manage your account and track progress"
-        onMenuClick={() => setSidebarOpen(true)}
+        onMenuClick={openSidebar}
       />
 
       <div className="flex-1 p-6 lg:p-8">
@@ -161,7 +162,7 @@ export default function LearnerProfilePage() {
           </div>
 
           {/* Three stat cards */}
-          <div className="grid grid-cols-3 gap-4 mb-6">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
             <div className="bg-white rounded-xl border border-slate-200/80 shadow-soft p-4 text-center">
               <div className="w-10 h-10 bg-accent-50 rounded-xl flex items-center justify-center mx-auto mb-2.5 border border-accent-100">
                 <BookOpen className="w-5 h-5 text-accent-500" />

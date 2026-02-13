@@ -5,17 +5,18 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { BookOpen, Clock, CheckCircle, Play, GraduationCap } from 'lucide-react';
 import { LearnerHeader } from '@/components/learner';
+import { useSidebar } from '@/lib/sidebar-context';
 import { Button, Badge, PageLoading, EmptyState } from '@/components/ui';
 import { useLearnerHome } from '@/hooks/useLearnerData';
 
 export default function LearnerProgramsPage() {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { openSidebar } = useSidebar();
   const { data, isLoading } = useLearnerHome();
 
   if (isLoading) {
     return (
       <>
-        <LearnerHeader title="My Programs" onMenuClick={() => setSidebarOpen(true)} />
+        <LearnerHeader title="My Programs" onMenuClick={openSidebar} />
         <PageLoading />
       </>
     );
@@ -29,7 +30,7 @@ export default function LearnerProgramsPage() {
       <LearnerHeader
         title="My Programs"
         subtitle={`${programs.length} programs enrolled • ${completedCount} completed`}
-        onMenuClick={() => setSidebarOpen(true)}
+        onMenuClick={openSidebar}
       />
 
       <div className="flex-1 p-6 lg:p-8">

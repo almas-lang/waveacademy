@@ -17,6 +17,7 @@ import {
   Target,
 } from 'lucide-react';
 import { LearnerHeader } from '@/components/learner';
+import { useSidebar } from '@/lib/sidebar-context';
 import { Button, Badge, PageLoading } from '@/components/ui';
 import { useLearnerProgram } from '@/hooks/useLearnerData';
 import { LearnerContentItem } from '@/types/learner';
@@ -25,7 +26,7 @@ import clsx from 'clsx';
 export default function LearnerProgramDetailPage() {
   const params = useParams();
   const programId = params.id as string;
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { openSidebar } = useSidebar();
   const storageKey = `program-tree:${programId}`;
 
   // Restore expanded state from sessionStorage, or start empty
@@ -229,7 +230,7 @@ export default function LearnerProgramDetailPage() {
   if (isLoading) {
     return (
       <>
-        <LearnerHeader title="Program" onMenuClick={() => setSidebarOpen(true)} />
+        <LearnerHeader title="Program" onMenuClick={openSidebar} />
         <PageLoading />
       </>
     );
@@ -238,7 +239,7 @@ export default function LearnerProgramDetailPage() {
   if (!data) {
     return (
       <>
-        <LearnerHeader title="Program" onMenuClick={() => setSidebarOpen(true)} />
+        <LearnerHeader title="Program" onMenuClick={openSidebar} />
         <div className="flex-1 p-6 lg:p-8">
           <div className="bg-white rounded-xl border border-slate-200/80 shadow-soft">
             <div className="text-center py-20">
@@ -290,7 +291,7 @@ export default function LearnerProgramDetailPage() {
       <LearnerHeader
         title={program.name}
         subtitle={`${lessonCounts.total} lessons • ${progressPercentage}% complete`}
-        onMenuClick={() => setSidebarOpen(true)}
+        onMenuClick={openSidebar}
       />
 
       <div className="flex-1 p-6 lg:p-8">
