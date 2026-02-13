@@ -134,7 +134,18 @@ export function useUpdateLessonProgress() {
     [mutation]
   );
 
-  return { ...mutation, mutate: throttledMutate };
+  const flush = useCallback(() => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+    if (pendingRef.current) {
+      mutation.mutate(pendingRef.current);
+      pendingRef.current = null;
+    }
+  }, [mutation]);
+
+  return { ...mutation, mutate: throttledMutate, flush };
 }
 
 // Mark lesson as complete

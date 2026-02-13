@@ -39,7 +39,7 @@ export default function LearnerProgramsPage() {
               <Link
                 key={program.id}
                 href={program.nextLessonId
-                  ? `/learner/lessons/${program.nextLessonId}`
+                  ? `/learner/lessons/${program.nextLessonId}?program=${encodeURIComponent(program.name)}`
                   : `/learner/programs/${program.id}`}
                 className="group bg-white rounded-xl border border-slate-200/80 shadow-soft overflow-hidden hover:shadow-elevated hover:border-slate-300 transition-all duration-200"
               >
@@ -82,6 +82,9 @@ export default function LearnerProgramsPage() {
                   <h3 className="font-semibold text-slate-900 mb-2 group-hover:text-accent-600 transition-colors">
                     {program.name}
                   </h3>
+                  {program.nextLessonTitle && program.progressPercentage > 0 && program.progressPercentage < 100 && (
+                    <p className="text-sm text-accent-500 truncate -mt-1 mb-2">↳ Currently on: {program.nextLessonTitle}</p>
+                  )}
 
                   {program.description && (
                     <p className="text-sm text-slate-500 mb-3 line-clamp-2">
@@ -107,7 +110,7 @@ export default function LearnerProgramsPage() {
                   <div className="mb-4">
                     <div className="flex items-center justify-between text-sm mb-2">
                       <span className="text-slate-500">
-                        {program.completedLessons} / {program.totalLessons} completed
+                        {program.completedLessons}/{program.totalLessons} lessons completed
                       </span>
                       <span className="font-semibold text-slate-900">
                         {program.progressPercentage}%

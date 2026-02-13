@@ -169,7 +169,6 @@ export default function LearnerHomePage() {
       )
     : 0;
 
-  const continueLearning = data?.continueLearning;
   const stats = data?.learningStats;
   const nextSession = data?.upcomingSessions?.[0];
   const sessionCountdown = nextSession ? getSessionCountdown(nextSession.startTime) : null;
@@ -245,7 +244,7 @@ export default function LearnerHomePage() {
                   <CheckCircle className="w-5 h-5 text-emerald-500" />
                 </div>
                 <div>
-                  <p className="text-xs text-slate-500 font-medium">Lessons Done</p>
+                  <p className="text-xs text-slate-500 font-medium">Lessons Completed</p>
                   <p className="text-xl font-bold text-slate-900">{stats.lessonsCompleted}</p>
                 </div>
               </div>
@@ -257,8 +256,12 @@ export default function LearnerHomePage() {
                   <Clock className="w-5 h-5 text-blue-500" />
                 </div>
                 <div>
-                  <p className="text-xs text-slate-500 font-medium">Hours Watched</p>
-                  <p className="text-xl font-bold text-slate-900">{stats.hoursLearned}</p>
+                  <p className="text-xs text-slate-500 font-medium">Time Watched</p>
+                  <p className="text-xl font-bold text-slate-900">
+                    {stats.hoursLearned >= 1
+                      ? `${stats.hoursLearned}h`
+                      : `${stats.minutesWatched || 0}m`}
+                  </p>
                 </div>
               </div>
             </div>
@@ -275,42 +278,6 @@ export default function LearnerHomePage() {
               </div>
             </div>
           </div>
-        )}
-
-        {/* Continue Where You Left Off */}
-        {continueLearning && (
-          <Link
-            href={`/learner/lessons/${continueLearning.lessonId}?type=VIDEO`}
-            className="block mb-8 animate-slide-up opacity-0 [animation-fill-mode:forwards] [animation-delay:50ms]"
-          >
-            <div className="group bg-white rounded-xl border border-slate-200/80 shadow-soft hover:shadow-elevated hover:border-slate-300 transition-all p-5">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-accent-50 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:bg-accent-500 transition-colors">
-                  <Play className="w-5 h-5 text-accent-500 group-hover:text-white transition-colors ml-0.5" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-medium text-accent-500 mb-0.5">Continue where you left off</p>
-                  <p className="font-semibold text-slate-900 truncate group-hover:text-accent-600 transition-colors">
-                    {continueLearning.lessonTitle}
-                  </p>
-                  <p className="text-xs text-slate-500 mt-0.5">{continueLearning.programName}</p>
-                </div>
-                <Button variant="primary" size="sm" rightIcon={<ArrowRight className="w-4 h-4" />}>
-                  Resume
-                </Button>
-              </div>
-              {continueLearning.totalDuration && continueLearning.totalDuration > 0 && (
-                <div className="mt-3 ml-16">
-                  <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
-                    <div
-                      className="h-full bg-accent-500 rounded-full transition-all duration-500"
-                      style={{ width: `${Math.min(100, Math.round((continueLearning.watchPosition / continueLearning.totalDuration) * 100))}%` }}
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
-          </Link>
         )}
 
         {/* My Programs */}
@@ -337,7 +304,7 @@ export default function LearnerHomePage() {
                 <Link
                   key={program.id}
                   href={program.nextLessonId
-                    ? `/learner/lessons/${program.nextLessonId}`
+                    ? `/learner/lessons/${program.nextLessonId}?program=${encodeURIComponent(program.name)}`
                     : `/learner/programs/${program.id}`}
                   className="group bg-white rounded-xl border border-slate-200/80 shadow-soft overflow-hidden hover:shadow-elevated hover:border-slate-300 transition-all duration-200 animate-slide-up opacity-0 [animation-fill-mode:forwards]"
                   style={{ animationDelay: `${100 + index * 75}ms` }}
@@ -373,12 +340,15 @@ export default function LearnerHomePage() {
                     <h4 className="font-semibold text-slate-900 mb-2 group-hover:text-accent-600 transition-colors">
                       {program.name}
                     </h4>
+                    {program.nextLessonTitle && program.progressPercentage > 0 && program.progressPercentage < 100 && (
+                      <p className="text-sm text-accent-500 truncate -mt-1 mb-2">↳ Currently on: {program.nextLessonTitle}</p>
+                    )}
 
                     {/* Progress */}
                     <div className="mb-4">
                       <div className="flex items-center justify-between text-sm mb-2">
                         <span className="text-slate-500">
-                          {program.completedLessons} / {program.totalLessons} lessons
+                          {program.completedLessons}/{program.totalLessons} lessons completed
                         </span>
                         <span className="font-semibold text-slate-900">{program.progressPercentage}%</span>
                       </div>
@@ -511,7 +481,7 @@ export default function LearnerHomePage() {
                   {data.recentProgress.slice(0, 5).map((activity, index) => (
                     <Link
                       key={index}
-                      href={`/learner/lessons/${activity.lessonId}`}
+                      href={`/learner/lessons/${activity.lessonId}?program=${encodeURIComponent(activity.programName || '')}`}
                       className="flex items-center gap-3.5 p-3 rounded-lg hover:bg-slate-50 transition-colors group"
                     >
                       <div

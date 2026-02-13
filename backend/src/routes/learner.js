@@ -51,75 +51,30 @@ router.get('/home', async (req, res, next) => {
         orderBy: { lastAccessedAt: 'desc' }
       });
 
-      // Build a set of completed lesson IDs for quick lookup
-      const completedLessonIds = new Set(
-        progress.filter(p => p.status === 'COMPLETED').map(p => p.lesson.id)
-      );
-
-      // For each program, get the content tree and find the first uncompleted lesson in course order
-      const programTrees = await Promise.all(
-        enrollments.map(e =>
-          req.prisma.program.findUnique({
-            where: { id: e.programId },
-            include: {
-              topics: {
-                include: {
-                  subtopics: {
-                    include: {
-                      lessons: { orderBy: { orderIndex: 'asc' }, select: { id: true, orderIndex: true } }
-                    },
-                    orderBy: { orderIndex: 'asc' }
-                  },
-                  lessons: {
-                    where: { subtopicId: null },
-                    orderBy: { orderIndex: 'asc' },
-                    select: { id: true, orderIndex: true }
-                  }
-                },
-                orderBy: { orderIndex: 'asc' }
-              },
-              lessons: {
-                where: { topicId: null, subtopicId: null },
-                orderBy: { orderIndex: 'asc' },
-                select: { id: true, orderIndex: true }
-              }
-            }
-          })
-        )
-      );
-
-      // Helper: flatten content tree into ordered lesson IDs
-      function flattenLessons(program) {
-        const lessons = [];
-        if (!program) return lessons;
-        for (const topic of program.topics) {
-          const children = [
-            ...topic.subtopics.map(s => ({ type: 'subtopic', orderIndex: s.orderIndex, lessons: s.lessons })),
-            ...topic.lessons.map(l => ({ type: 'lesson', orderIndex: l.orderIndex, lesson: l }))
-          ].sort((a, b) => a.orderIndex - b.orderIndex);
-          for (const child of children) {
-            if (child.type === 'subtopic') {
-              lessons.push(...child.lessons.map(l => l.id));
-            } else {
-              lessons.push(child.lesson.id);
-            }
-          }
-        }
-        lessons.push(...program.lessons.map(l => l.id));
-        return lessons;
-      }
-
-      // Calculate program progress
-      const enrolledPrograms = enrollments.map((enrollment, i) => {
+      // Pass 1: Calculate program progress using in-memory data
+      const needsTreeLookup = []; // program IDs that need content tree to find next lesson
+      const enrolledPrograms = enrollments.map((enrollment) => {
         const programProgress = progress.filter(
           p => p.lesson.programId === enrollment.programId
         );
         const completedCount = programProgress.filter(p => p.status === 'COMPLETED').length;
         const totalLessons = enrollment.program._count.lessons;
 
-        // Find first uncompleted lesson in course order
-        const orderedLessonIds = flattenLessons(programTrees[i]);
-        const nextLessonId = orderedLessonIds.find(id => !completedLessonIds.has(id)) || null;
+        // Resume from the lesson the user was last actively working on.
+        // progress is sorted by lastAccessedAt desc, so the first IN_PROGRESS
+        // record is the most recently studied lesson for this program.
+        const lastStudied = programProgress.find(p => p.status === 'IN_PROGRESS');
+        let nextLessonId = null;
+        let nextLessonTitle = null;
+
+        if (lastStudied) {
+          nextLessonId = lastStudied.lesson.id;
+          nextLessonTitle = lastStudied.lesson.title;
+        } else if (completedCount < totalLessons) {
+          // No IN_PROGRESS lesson but uncompleted lessons remain — need tree lookup
+          needsTreeLookup.push(enrollment.programId);
+        }
+        // If completedCount >= totalLessons → nextLessonId stays null (all done)
 
         return {
           id: enrollment.program.id,
@@ -130,9 +85,99 @@ router.get('/home', async (req, res, next) => {
           totalLessons,
           progressPercentage: totalLessons > 0 ? Math.round((completedCount / totalLessons) * 100) : 0,
           lastAccessedAt: programProgress[0]?.lastAccessedAt || enrollment.enrolledAt,
-          nextLessonId
+          nextLessonId,
+          nextLessonTitle
         };
       });
+
+      // Pass 2: For programs that need it, fetch content trees and find the first uncompleted lesson
+      if (needsTreeLookup.length > 0) {
+        const trees = await req.prisma.program.findMany({
+          where: { id: { in: needsTreeLookup } },
+          include: {
+            topics: {
+              include: {
+                subtopics: {
+                  include: {
+                    lessons: { orderBy: { orderIndex: 'asc' }, select: { id: true, title: true, orderIndex: true } }
+                  },
+                  orderBy: { orderIndex: 'asc' }
+                },
+                lessons: {
+                  where: { subtopicId: null },
+                  orderBy: { orderIndex: 'asc' },
+                  select: { id: true, title: true, orderIndex: true }
+                }
+              },
+              orderBy: { orderIndex: 'asc' }
+            },
+            lessons: {
+              where: { topicId: null, subtopicId: null },
+              orderBy: { orderIndex: 'asc' },
+              select: { id: true, title: true }
+            }
+          }
+        });
+
+        for (const tree of trees) {
+          // Flatten lessons in content tree order (keeping id + title)
+          const orderedLessons = [];
+          for (const topic of tree.topics) {
+            const children = [
+              ...topic.subtopics.map(s => ({ type: 'subtopic', orderIndex: s.orderIndex, lessons: s.lessons })),
+              ...topic.lessons.map(l => ({ type: 'lesson', orderIndex: l.orderIndex, lesson: l }))
+            ].sort((a, b) => a.orderIndex - b.orderIndex);
+
+            for (const child of children) {
+              if (child.type === 'subtopic') {
+                orderedLessons.push(...child.lessons);
+              } else {
+                orderedLessons.push(child.lesson);
+              }
+            }
+          }
+          orderedLessons.push(...tree.lessons);
+
+          // Build set of completed lesson IDs for this program
+          const completedIds = new Set(
+            progress
+              .filter(p => p.lesson.programId === tree.id && p.status === 'COMPLETED')
+              .map(p => p.lesson.id)
+          );
+
+          const firstUncompleted = orderedLessons.find(l => !completedIds.has(l.id));
+          if (firstUncompleted) {
+            const entry = enrolledPrograms.find(ep => ep.id === tree.id);
+            if (entry) {
+              entry.nextLessonId = firstUncompleted.id;
+              entry.nextLessonTitle = firstUncompleted.title;
+            }
+          }
+        }
+      }
+
+      // Fallback: for any programs still missing nextLesson, query directly
+      for (const ep of enrolledPrograms) {
+        if (!ep.nextLessonId && ep.completedLessons < ep.totalLessons) {
+          const completedLessonIds = progress
+            .filter(p => p.lesson.programId === ep.id && p.status === 'COMPLETED')
+            .map(p => p.lesson.id);
+
+          const nextLesson = await req.prisma.lesson.findFirst({
+            where: {
+              programId: ep.id,
+              ...(completedLessonIds.length > 0 ? { id: { notIn: completedLessonIds } } : {})
+            },
+            orderBy: { orderIndex: 'asc' },
+            select: { id: true, title: true }
+          });
+
+          if (nextLesson) {
+            ep.nextLessonId = nextLesson.id;
+            ep.nextLessonTitle = nextLesson.title;
+          }
+        }
+      }
 
       // Find continue learning (last in-progress lesson)
       const inProgressLesson = progress.find(p => p.status === 'IN_PROGRESS');
@@ -167,6 +212,7 @@ router.get('/home', async (req, res, next) => {
       const completedLessons = progress.filter(p => p.status === 'COMPLETED').length;
       const totalWatchSeconds = progress.reduce((sum, p) => sum + (p.watchPositionSeconds || 0), 0);
       const hoursLearned = Math.round(totalWatchSeconds / 360) / 10; // 1 decimal
+      const minutesWatched = Math.round(totalWatchSeconds / 60);
 
       // Active days this week (Monday = start)
       const now = new Date();
@@ -212,13 +258,27 @@ router.get('/home', async (req, res, next) => {
         }
       }
 
+      // Recent activity (progress already sorted by lastAccessedAt desc)
+      const programNameMap = Object.fromEntries(
+        enrollments.map(e => [e.programId, e.program.name])
+      );
+      const recentProgress = progress.slice(0, 10).map(p => ({
+        lessonId: p.lesson.id,
+        lessonTitle: p.lesson.title,
+        programName: programNameMap[p.lesson.programId] || '',
+        status: p.status,
+        lastAccessedAt: p.lastAccessedAt
+      }));
+
       return {
         user: { name: req.user.name },
         enrolledPrograms,
         continueLearning,
+        recentProgress,
         learningStats: {
           lessonsCompleted: completedLessons,
           hoursLearned,
+          minutesWatched,
           activeDaysThisWeek,
           currentStreak
         },
@@ -434,10 +494,14 @@ router.get('/lessons/:id', async (req, res, next) => {
       });
     }
 
-    // Update last accessed
+    // Update last accessed; transition NOT_STARTED → IN_PROGRESS when lesson is opened
+    const updateData = { lastAccessedAt: new Date() };
+    if (progress.status === 'NOT_STARTED') {
+      updateData.status = 'IN_PROGRESS';
+    }
     await req.prisma.progress.update({
       where: { id: progress.id },
-      data: { lastAccessedAt: new Date() }
+      data: updateData
     });
 
     // Bust home cache so "Continue Learning" reflects this lesson
@@ -522,8 +586,9 @@ router.get('/lessons/:id', async (req, res, next) => {
           name: lesson.program.name
         },
         progress: {
-          status: progress.status,
-          watchPositionSeconds: progress.watchPositionSeconds
+          status: updateData.status || progress.status,
+          watchPositionSeconds: progress.watchPositionSeconds,
+          completedAt: progress.completedAt
         },
         navigation: {
           previousLesson: prevLesson ? { id: prevLesson.id, title: prevLesson.title } : null,
@@ -548,19 +613,34 @@ router.post('/lessons/:id/progress', async (req, res, next) => {
     const { watchPositionSeconds } = req.body;
     const userId = req.user.id;
 
+    // Validate watchPositionSeconds
+    const position = parseInt(watchPositionSeconds, 10);
+    if (isNaN(position) || position < 0) {
+      return res.status(400).json({ success: false, error: { message: 'Invalid watch position' } });
+    }
+
+    // Verify enrollment
+    const lesson = await req.prisma.lesson.findUnique({ where: { id }, select: { programId: true } });
+    if (!lesson) return res.status(404).json({ success: false, error: { message: 'Lesson not found' } });
+
+    const enrolled = await req.prisma.enrollment.findUnique({
+      where: { userId_programId: { userId, programId: lesson.programId } }
+    });
+    if (!enrolled) return res.status(403).json({ success: false, error: { message: 'Not enrolled in this program' } });
+
     const progress = await req.prisma.progress.upsert({
       where: {
         userId_lessonId: { userId, lessonId: id }
       },
       update: {
-        watchPositionSeconds,
+        watchPositionSeconds: position,
         status: 'IN_PROGRESS',
         lastAccessedAt: new Date()
       },
       create: {
         userId,
         lessonId: id,
-        watchPositionSeconds,
+        watchPositionSeconds: position,
         status: 'IN_PROGRESS'
       }
     });
@@ -592,6 +672,18 @@ router.post('/lessons/:id/complete', async (req, res, next) => {
     const { id } = req.params;
     const userId = req.user.id;
 
+    // Verify lesson exists and user is enrolled
+    const lesson = await req.prisma.lesson.findUnique({
+      where: { id },
+      select: { programId: true }
+    });
+    if (!lesson) return res.status(404).json({ success: false, error: { message: 'Lesson not found' } });
+
+    const enrolled = await req.prisma.enrollment.findUnique({
+      where: { userId_programId: { userId, programId: lesson.programId } }
+    });
+    if (!enrolled) return res.status(403).json({ success: false, error: { message: 'Not enrolled in this program' } });
+
     await req.prisma.progress.upsert({
       where: {
         userId_lessonId: { userId, lessonId: id }
@@ -616,14 +708,9 @@ router.post('/lessons/:id/complete', async (req, res, next) => {
     ]);
 
     // Get next lesson
-    const lesson = await req.prisma.lesson.findUnique({
-      where: { id },
-      select: { programId: true }
-    });
-
     const programLessons = await req.prisma.lesson.findMany({
       where: { programId: lesson.programId },
-      orderBy: [{ topicId: 'asc' }, { subtopicId: 'asc' }, { orderIndex: 'asc' }],
+      orderBy: { orderIndex: 'asc' },
       select: { id: true }
     });
 
@@ -722,11 +809,13 @@ router.get('/sessions', async (req, res, next) => {
  */
 router.get('/sessions/calendar', async (req, res, next) => {
   try {
-    const { month, year } = req.query;
     const userId = req.user.id;
+    const now = new Date();
+    const monthNum = parseInt(req.query.month) || (now.getMonth() + 1);
+    const yearNum = parseInt(req.query.year) || now.getFullYear();
 
-    const startDate = new Date(parseInt(year), parseInt(month) - 1, 1);
-    const endDate = new Date(parseInt(year), parseInt(month), 0, 23, 59, 59);
+    const startDate = new Date(yearNum, monthNum - 1, 1);
+    const endDate = new Date(yearNum, monthNum, 0, 23, 59, 59);
 
     const enrollments = await req.prisma.enrollment.findMany({
       where: { userId },

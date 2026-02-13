@@ -179,7 +179,7 @@ export default function LearnerProfilePage() {
               <p className="text-2xl font-bold text-slate-900">
                 {completedLessons}
               </p>
-              <p className="text-xs text-slate-500 font-medium mt-0.5">Lessons Done</p>
+              <p className="text-xs text-slate-500 font-medium mt-0.5">Lessons Completed</p>
             </div>
 
             <div className="bg-white rounded-xl border border-slate-200/80 shadow-soft p-4 text-center">

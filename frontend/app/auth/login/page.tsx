@@ -141,7 +141,7 @@ export default function LoginPage() {
           </h2>
 
           <p className="text-primary-100 text-lg max-w-md leading-relaxed">
-            Access your courses, track your progress, and achieve your learning goals with our comprehensive platform.
+            Access your programs, courses, track your progress, and achieve your learning goals with our comprehensive platform.
           </p>
 
           {/* Stats */}

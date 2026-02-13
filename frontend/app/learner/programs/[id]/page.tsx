@@ -128,7 +128,7 @@ export default function LearnerProgramDetailPage() {
       return (
         <Link
           key={item.id}
-          href={`/learner/lessons/${item.id}?type=${item.lessonType}`}
+          href={`/learner/lessons/${item.id}?type=${item.lessonType}&program=${encodeURIComponent(program.name)}`}
           className={clsx(
             'flex items-center justify-between py-3.5 px-4 rounded-lg transition-all group',
             isCompleted
@@ -280,7 +280,7 @@ export default function LearnerProgramDetailPage() {
     );
   };
 
-  const lessonCounts = countLessons(content.filter(item => item.type !== 'lesson'));
+  const lessonCounts = countLessons(content);
   const progressPercentage = lessonCounts.total > 0
     ? Math.round((lessonCounts.completed / lessonCounts.total) * 100)
     : 0;
@@ -386,7 +386,7 @@ export default function LearnerProgramDetailPage() {
           <div className="p-4">
             {content.length > 0 ? (
               <div className="space-y-2">
-                {content.filter(item => item.type !== 'lesson').map((item) => renderContentItem(item))}
+                {content.map((item) => renderContentItem(item))}
               </div>
             ) : (
               <div className="text-center py-16">

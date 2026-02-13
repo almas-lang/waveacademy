@@ -10,15 +10,14 @@ export interface ContinueLearning {
 export interface LearningStats {
   lessonsCompleted: number;
   hoursLearned: number;
+  minutesWatched: number;
   activeDaysThisWeek: number;
   currentStreak: number;
 }
 
 export interface LearnerHome {
   user: {
-    id: string;
     name: string;
-    email: string;
   };
   enrolledPrograms: EnrolledProgram[];
   continueLearning: ContinueLearning | null;
@@ -37,6 +36,7 @@ export interface EnrolledProgram {
   progressPercentage: number;
   lastAccessedAt?: string;
   nextLessonId?: string | null;
+  nextLessonTitle?: string | null;
 }
 
 export interface UpcomingSession {

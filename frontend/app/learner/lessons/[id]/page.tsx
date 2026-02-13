@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import DOMPurify from 'dompurify';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -19,7 +20,8 @@ import {
 } from 'lucide-react';
 import { LearnerHeader } from '@/components/learner';
 import { Button, Badge } from '@/components/ui';
-import { useLearnerLesson, useCompleteLesson } from '@/hooks/useLearnerData';
+import { useLearnerLesson, useCompleteLesson, useUpdateLessonProgress, learnerKeys } from '@/hooks/useLearnerData';
+import { useQueryClient } from '@tanstack/react-query';
 
 function getFileIcon(name: string) {
   const ext = name.split('.').pop()?.toLowerCase();
@@ -103,11 +105,73 @@ export default function LessonViewerPage() {
   const searchParams = useSearchParams();
   const lessonId = params.id as string;
   const lessonType = searchParams.get('type') || undefined;
+  const programNameHint = searchParams.get('program') || '';
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showCompletionCelebration, setShowCompletionCelebration] = useState(false);
 
+  // Scroll to top when navigating to a lesson
+  useEffect(() => {
+    setTimeout(() => window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior }), 0);
+  }, [lessonId]);
+
   const { data, isLoading } = useLearnerLesson(lessonId);
   const completeLesson = useCompleteLesson();
+  const updateProgress = useUpdateLessonProgress();
+  const queryClient = useQueryClient();
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+
+  // Track video progress via Bunny's player.js library
+  useEffect(() => {
+    if (!data || data.lesson.type !== 'VIDEO' || !data.lesson.contentUrl) return;
+    const iframe = iframeRef.current;
+    if (!iframe) return;
+
+    let destroyed = false;
+
+    const init = () => {
+      if (destroyed) return;
+      const w = window as any;
+      if (!w.playerjs) {
+        console.error('[VideoProgress] playerjs failed to load');
+        return;
+      }
+      const player = new w.playerjs.Player(iframe);
+      player.on('ready', () => {
+        if (destroyed) return;
+        console.log('[VideoProgress] Player ready, subscribing to timeupdate');
+        player.on('timeupdate', (value: { seconds: number; duration: number }) => {
+          if (!destroyed) {
+            updateProgress.mutate({
+              lessonId,
+              watchPositionSeconds: Math.floor(value.seconds),
+            });
+          }
+        });
+      });
+    };
+
+    if ((window as any).playerjs) {
+      init();
+    } else {
+      const script = document.createElement('script');
+      script.src = 'https://assets.mediadelivery.net/playerjs/playerjs-latest.min.js';
+      script.onload = init;
+      script.onerror = () => console.error('[VideoProgress] Failed to load playerjs script');
+      document.head.appendChild(script);
+    }
+
+    return () => {
+      destroyed = true;
+    };
+  }, [data, lessonId, updateProgress]);
+
+  // Flush pending progress and invalidate home cache when navigating away
+  useEffect(() => {
+    return () => {
+      updateProgress.flush();
+      queryClient.invalidateQueries({ queryKey: learnerKeys.home() });
+    };
+  }, [updateProgress, queryClient]);
 
   const handleMarkComplete = () => {
     completeLesson.mutate(lessonId, {
@@ -120,7 +184,7 @@ export default function LessonViewerPage() {
   if (isLoading) {
     return (
       <>
-        <LearnerHeader title="Lesson" onMenuClick={() => setSidebarOpen(true)} />
+        <LearnerHeader title="loading..." onMenuClick={() => setSidebarOpen(true)} />
         <LessonSkeleton type={lessonType} />
       </>
     );
@@ -129,7 +193,7 @@ export default function LessonViewerPage() {
   if (!data) {
     return (
       <>
-        <LearnerHeader title="Lesson" onMenuClick={() => setSidebarOpen(true)} />
+        <LearnerHeader title="loading..." onMenuClick={() => setSidebarOpen(true)} />
         <div className="flex-1 p-6 lg:p-8">
           <div className="bg-white rounded-xl border border-slate-200/80 shadow-soft">
             <div className="text-center py-20">
@@ -157,8 +221,7 @@ export default function LessonViewerPage() {
   return (
     <>
       <LearnerHeader
-        title={lesson.title}
-        subtitle={program.name}
+        title={program.name}
         onMenuClick={() => setSidebarOpen(true)}
       />
 
@@ -172,7 +235,7 @@ export default function LessonViewerPage() {
               className="flex items-center gap-2 text-slate-600 hover:text-slate-900 transition-colors min-w-0"
             >
               <ArrowLeft className="w-4 h-4 flex-shrink-0" />
-              <span className="hidden sm:inline font-medium truncate max-w-[200px]">{program.name}</span>
+              <span className="hidden sm:inline font-medium truncate max-w-[200px]">{lesson.title}</span>
               <span className="sm:hidden font-medium">Back</span>
             </Link>
 
@@ -186,14 +249,14 @@ export default function LessonViewerPage() {
             {/* Right: Prev/Next */}
             <div className="flex items-center gap-2">
               {navigation.previousLesson && (
-                <Link href={`/learner/lessons/${navigation.previousLesson.id}`}>
+                <Link href={`/learner/lessons/${navigation.previousLesson.id}?program=${encodeURIComponent(program.name)}`}>
                   <Button variant="ghost" size="sm" leftIcon={<ChevronLeft className="w-4 h-4" />}>
                     <span className="hidden sm:inline">Previous</span>
                   </Button>
                 </Link>
               )}
               {navigation.nextLesson && (
-                <Link href={`/learner/lessons/${navigation.nextLesson.id}`}>
+                <Link href={`/learner/lessons/${navigation.nextLesson.id}?program=${encodeURIComponent(program.name)}`}>
                   <Button variant="secondary" size="sm" rightIcon={<ChevronRight className="w-4 h-4" />}>
                     <span className="hidden sm:inline">Next</span>
                   </Button>
@@ -220,6 +283,7 @@ export default function LessonViewerPage() {
               <div className="bg-slate-900 rounded-xl shadow-lg overflow-hidden">
                 <div style={{ position: 'relative', paddingTop: '56.25%' }}>
                   <iframe
+                    ref={iframeRef}
                     src={progress?.watchPositionSeconds
                       ? `${lesson.contentUrl}${lesson.contentUrl.includes('?') ? '&' : '?'}t=${progress.watchPositionSeconds}&autoplay=false&preload=true`
                       : `${lesson.contentUrl}${lesson.contentUrl.includes('?') ? '&' : '?'}autoplay=false&preload=true`
@@ -324,7 +388,7 @@ export default function LessonViewerPage() {
                 {lesson.contentText ? (
                   <div
                     className="prose prose-slate max-w-none prose-headings:text-slate-900 prose-p:text-slate-600 prose-a:text-accent-500 prose-strong:text-slate-900"
-                    dangerouslySetInnerHTML={{ __html: lesson.contentText }}
+                    dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(lesson.contentText) }}
                   />
                 ) : (
                   <div className="text-center py-12">
@@ -382,7 +446,7 @@ export default function LessonViewerPage() {
                 <h3 className="text-lg font-semibold text-slate-900 mb-1">Lesson Complete!</h3>
                 <p className="text-slate-500 mb-6">Great job — keep up the momentum!</p>
                 {navigation.nextLesson ? (
-                  <Link href={`/learner/lessons/${navigation.nextLesson.id}`}>
+                  <Link href={`/learner/lessons/${navigation.nextLesson.id}?program=${encodeURIComponent(program.name)}`}>
                     <Button variant="primary" rightIcon={<ChevronRight className="w-4 h-4" />}>
                       Continue to Next Lesson
                     </Button>
@@ -403,7 +467,7 @@ export default function LessonViewerPage() {
                   <span className="font-medium">Lesson Complete</span>
                 </div>
                 {navigation.nextLesson ? (
-                  <Link href={`/learner/lessons/${navigation.nextLesson.id}`}>
+                  <Link href={`/learner/lessons/${navigation.nextLesson.id}?program=${encodeURIComponent(program.name)}`}>
                     <Button variant="primary" rightIcon={<ChevronRight className="w-4 h-4" />}>
                       Continue to Next Lesson
                     </Button>
