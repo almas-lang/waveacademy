@@ -177,6 +177,8 @@ export default function LearnerHomePage() {
   const nextSession = data?.upcomingSessions?.[0];
   const sessionCountdown = nextSession ? getSessionCountdown(nextSession.startTime) : null;
   const hasPrograms = data?.enrolledPrograms && data.enrolledPrograms.length > 0;
+  const privatePrograms = (data?.enrolledPrograms || []).filter(p => !p.isPublic);
+  const shortCourses = (data?.enrolledPrograms || []).filter(p => p.isPublic);
 
   return (
     <>
@@ -285,7 +287,7 @@ export default function LearnerHomePage() {
           </div>
         )}
 
-        {/* My Programs */}
+        {/* Programs & Short Courses */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-5">
             <div>
@@ -304,107 +306,219 @@ export default function LearnerHomePage() {
           </div>
 
           {hasPrograms ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-              {data.enrolledPrograms.map((program, index) => (
-                <Link
-                  key={program.id}
-                  href={program.nextLessonId
-                    ? `/learner/lessons/${program.nextLessonId}?program=${encodeURIComponent(program.name)}`
-                    : `/learner/programs/${program.id}`}
-                  className="group bg-white rounded-xl border border-slate-200/80 shadow-soft overflow-hidden hover:shadow-elevated hover:border-slate-300 transition-all duration-200 animate-slide-up opacity-0 [animation-fill-mode:forwards]"
-                  style={{ animationDelay: `${100 + index * 75}ms` }}
-                >
-                  {/* Thumbnail */}
-                  <div className="relative">
-                    {program.thumbnailUrl ? (
-                      <Image
-                        src={program.thumbnailUrl}
-                        alt={program.name}
-                        width={400}
-                        height={144}
-                        className="w-full h-36 object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-36 bg-gradient-to-br from-slate-100 to-slate-50 flex items-center justify-center">
-                        <BookOpen className="w-12 h-12 text-slate-300" />
-                      </div>
-                    )}
-                    {/* Progress overlay */}
-                    {program.progressPercentage === 100 && (
-                      <div className="absolute top-3 right-3">
-                        <Badge variant="success" size="sm">
-                          <CheckCircle className="w-3 h-3 mr-1" />
-                          Completed
-                        </Badge>
-                      </div>
-                    )}
-                    {program.enrollmentType === 'FREE' && program.progressPercentage !== 100 && (
-                      <div className="absolute top-3 left-3">
-                        <Badge variant="warning" size="sm">Free Preview</Badge>
-                      </div>
-                    )}
-                  </div>
+            <>
+              {/* Programs (private) */}
+              {privatePrograms.length > 0 && (
+                <div className="mb-6">
+                  <h4 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-4">Programs</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                    {privatePrograms.map((program, index) => (
+                      <Link
+                        key={program.id}
+                        href={program.nextLessonId
+                          ? `/learner/lessons/${program.nextLessonId}?program=${encodeURIComponent(program.name)}`
+                          : `/learner/programs/${program.id}`}
+                        className="group bg-white rounded-xl border border-slate-200/80 shadow-soft overflow-hidden hover:shadow-elevated hover:border-slate-300 transition-all duration-200 animate-slide-up opacity-0 [animation-fill-mode:forwards]"
+                        style={{ animationDelay: `${100 + index * 75}ms` }}
+                      >
+                        {/* Thumbnail */}
+                        <div className="relative">
+                          {program.thumbnailUrl ? (
+                            <Image
+                              src={program.thumbnailUrl}
+                              alt={program.name}
+                              width={400}
+                              height={144}
+                              className="w-full h-36 object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-36 bg-gradient-to-br from-slate-100 to-slate-50 flex items-center justify-center">
+                              <BookOpen className="w-12 h-12 text-slate-300" />
+                            </div>
+                          )}
+                          {program.progressPercentage === 100 && (
+                            <div className="absolute top-3 right-3">
+                              <Badge variant="success" size="sm">
+                                <CheckCircle className="w-3 h-3 mr-1" />
+                                Completed
+                              </Badge>
+                            </div>
+                          )}
+                          {program.enrollmentType === 'FREE' && program.progressPercentage !== 100 && (
+                            <div className="absolute top-3 left-3">
+                              <Badge variant="warning" size="sm">Free Preview</Badge>
+                            </div>
+                          )}
+                        </div>
 
-                  {/* Content */}
-                  <div className="p-5">
-                    <h4 className="font-semibold text-slate-900 mb-2 group-hover:text-accent-600 transition-colors">
-                      {program.name}
-                    </h4>
-                    {program.nextLessonTitle && program.progressPercentage > 0 && program.progressPercentage < 100 && (
-                      <p className="text-sm text-accent-500 truncate -mt-1 mb-2">↳ Currently on: {program.nextLessonTitle}</p>
-                    )}
+                        {/* Content */}
+                        <div className="p-5">
+                          <h4 className="font-semibold text-slate-900 mb-2 group-hover:text-accent-600 transition-colors">
+                            {program.name}
+                          </h4>
+                          {program.nextLessonTitle && program.progressPercentage > 0 && program.progressPercentage < 100 && (
+                            <p className="text-sm text-accent-500 truncate -mt-1 mb-2">↳ Currently on: {program.nextLessonTitle}</p>
+                          )}
 
-                    {/* Progress */}
-                    <div className="mb-4">
-                      <div className="flex items-center justify-between text-sm mb-2">
-                        <span className="text-slate-500">
-                          {program.completedLessons}/{program.totalLessons} lessons completed
-                        </span>
-                        <span className="font-semibold text-slate-900">{program.progressPercentage}%</span>
-                      </div>
-                      <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
-                        <div
-                          className="h-full rounded-full transition-all duration-1000 ease-out"
-                          style={{
-                            width: `${program.progressPercentage}%`,
-                            backgroundColor: program.progressPercentage === 100 ? '#10b981' : '#FF6B57',
-                          }}
-                        />
-                      </div>
-                      {program.enrollmentType === 'FREE' && program.freeLessons != null && program.freeLessons < program.totalLessons && (
-                        <p className="text-xs text-slate-500 mt-2">
-                          <span className="font-medium">{program.freeLessons} free</span> of {program.totalLessons} lessons ·{' '}
-                          <span
-                            role="link"
-                            className="text-accent-600 hover:text-accent-700 font-medium cursor-pointer"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              router.push(`/learner/programs/${program.id}`);
-                            }}
+                          <div className="mb-4">
+                            <div className="flex items-center justify-between text-sm mb-2">
+                              <span className="text-slate-500">
+                                {program.completedLessons}/{program.totalLessons} lessons completed
+                              </span>
+                              <span className="font-semibold text-slate-900">{program.progressPercentage}%</span>
+                            </div>
+                            <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                              <div
+                                className="h-full rounded-full transition-all duration-1000 ease-out"
+                                style={{
+                                  width: `${program.progressPercentage}%`,
+                                  backgroundColor: program.progressPercentage === 100 ? '#10b981' : '#FF6B57',
+                                }}
+                              />
+                            </div>
+                            {program.enrollmentType === 'FREE' && program.freeLessons != null && program.freeLessons < program.totalLessons && (
+                              <p className="text-xs text-slate-500 mt-2">
+                                <span className="font-medium">{program.freeLessons} free</span> of {program.totalLessons} lessons ·{' '}
+                                <span
+                                  role="link"
+                                  className="text-accent-600 hover:text-accent-700 font-medium cursor-pointer"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    router.push(`/learner/programs/${program.id}`);
+                                  }}
+                                >
+                                  Unlock all →
+                                </span>
+                              </p>
+                            )}
+                          </div>
+
+                          <Button
+                            variant={program.progressPercentage === 0 ? 'primary' : 'secondary'}
+                            size="sm"
+                            className="w-full"
+                            rightIcon={<Play className="w-4 h-4" />}
                           >
-                            Unlock all →
-                          </span>
-                        </p>
-                      )}
-                    </div>
-
-                    <Button
-                      variant={program.progressPercentage === 0 ? 'primary' : 'secondary'}
-                      size="sm"
-                      className="w-full"
-                      rightIcon={<Play className="w-4 h-4" />}
-                    >
-                      {program.progressPercentage === 0
-                        ? 'Start Learning'
-                        : program.progressPercentage === 100
-                        ? 'Review'
-                        : 'Continue'}
-                    </Button>
+                            {program.progressPercentage === 0
+                              ? 'Start Learning'
+                              : program.progressPercentage === 100
+                              ? 'Review'
+                              : 'Continue'}
+                          </Button>
+                        </div>
+                      </Link>
+                    ))}
                   </div>
-                </Link>
-              ))}
-            </div>
+                </div>
+              )}
+
+              {/* Short Courses (public) */}
+              {shortCourses.length > 0 && (
+                <div>
+                  <h4 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-4">Short Courses</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                    {shortCourses.map((program, index) => (
+                      <Link
+                        key={program.id}
+                        href={program.nextLessonId
+                          ? `/learner/lessons/${program.nextLessonId}?program=${encodeURIComponent(program.name)}`
+                          : `/learner/programs/${program.id}`}
+                        className="group bg-white rounded-xl border border-slate-200/80 shadow-soft overflow-hidden hover:shadow-elevated hover:border-slate-300 transition-all duration-200 animate-slide-up opacity-0 [animation-fill-mode:forwards]"
+                        style={{ animationDelay: `${100 + index * 75}ms` }}
+                      >
+                        {/* Thumbnail */}
+                        <div className="relative">
+                          {program.thumbnailUrl ? (
+                            <Image
+                              src={program.thumbnailUrl}
+                              alt={program.name}
+                              width={400}
+                              height={144}
+                              className="w-full h-36 object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-36 bg-gradient-to-br from-slate-100 to-slate-50 flex items-center justify-center">
+                              <BookOpen className="w-12 h-12 text-slate-300" />
+                            </div>
+                          )}
+                          {program.progressPercentage === 100 && (
+                            <div className="absolute top-3 right-3">
+                              <Badge variant="success" size="sm">
+                                <CheckCircle className="w-3 h-3 mr-1" />
+                                Completed
+                              </Badge>
+                            </div>
+                          )}
+                          {program.enrollmentType === 'FREE' && program.progressPercentage !== 100 && (
+                            <div className="absolute top-3 left-3">
+                              <Badge variant="warning" size="sm">Free Preview</Badge>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Content */}
+                        <div className="p-5">
+                          <h4 className="font-semibold text-slate-900 mb-2 group-hover:text-accent-600 transition-colors">
+                            {program.name}
+                          </h4>
+                          {program.nextLessonTitle && program.progressPercentage > 0 && program.progressPercentage < 100 && (
+                            <p className="text-sm text-accent-500 truncate -mt-1 mb-2">↳ Currently on: {program.nextLessonTitle}</p>
+                          )}
+
+                          <div className="mb-4">
+                            <div className="flex items-center justify-between text-sm mb-2">
+                              <span className="text-slate-500">
+                                {program.completedLessons}/{program.totalLessons} lessons completed
+                              </span>
+                              <span className="font-semibold text-slate-900">{program.progressPercentage}%</span>
+                            </div>
+                            <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                              <div
+                                className="h-full rounded-full transition-all duration-1000 ease-out"
+                                style={{
+                                  width: `${program.progressPercentage}%`,
+                                  backgroundColor: program.progressPercentage === 100 ? '#10b981' : '#FF6B57',
+                                }}
+                              />
+                            </div>
+                            {program.enrollmentType === 'FREE' && program.freeLessons != null && program.freeLessons < program.totalLessons && (
+                              <p className="text-xs text-slate-500 mt-2">
+                                <span className="font-medium">{program.freeLessons} free</span> of {program.totalLessons} lessons ·{' '}
+                                <span
+                                  role="link"
+                                  className="text-accent-600 hover:text-accent-700 font-medium cursor-pointer"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    router.push(`/learner/programs/${program.id}`);
+                                  }}
+                                >
+                                  Unlock all →
+                                </span>
+                              </p>
+                            )}
+                          </div>
+
+                          <Button
+                            variant={program.progressPercentage === 0 ? 'primary' : 'secondary'}
+                            size="sm"
+                            className="w-full"
+                            rightIcon={<Play className="w-4 h-4" />}
+                          >
+                            {program.progressPercentage === 0
+                              ? 'Start Learning'
+                              : program.progressPercentage === 100
+                              ? 'Review'
+                              : 'Continue'}
+                          </Button>
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
           ) : (
             /* Enhanced empty state */
             <div className="bg-gradient-to-br from-slate-50 to-white rounded-2xl border border-slate-200/80 shadow-soft text-center py-20 px-8 animate-fade-in">

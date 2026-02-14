@@ -96,6 +96,7 @@ router.get('/home', async (req, res, next) => {
           nextLessonId,
           nextLessonTitle,
           enrollmentType: enrollment.type,
+          isPublic: enrollment.program.isPublic,
           price: enrollment.program.price,
           currency: enrollment.program.currency,
           freeLessons: freeLessonMap.get(enrollment.programId) || 0

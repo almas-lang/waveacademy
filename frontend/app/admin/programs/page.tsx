@@ -182,49 +182,82 @@ export default function ProgramsPage() {
           </Button>
         </div>
 
-        {/* Programs Table */}
-        <div className="bg-white rounded-xl border border-slate-200/80 shadow-soft overflow-hidden">
-          {isLoading ? (
+        {/* Programs Tables */}
+        {isLoading ? (
+          <div className="bg-white rounded-xl border border-slate-200/80 shadow-soft overflow-hidden">
             <div className="flex items-center justify-center py-16">
               <InlineLoading text="Loading programs..." />
             </div>
-          ) : (
-            <>
-              <Table
-                columns={columns}
-                data={programs || []}
-                rowKey={(program) => program.id}
-                onRowClick={(program) => {
-                  router.push(`/admin/programs/${program.id}`);
-                }}
-                emptyState={{
-                  title: 'No programs yet',
-                  description: 'Create your first program to get started',
-                  action: {
-                    label: 'Create Program',
-                    onClick: () => setShowModal(true),
-                  },
-                }}
-              />
-
-              {/* Pagination */}
-              {pagination && pagination.totalPages > 1 && (
-                <div className="flex items-center justify-between px-5 py-4 border-t border-slate-100">
-                  <p className="text-sm text-slate-500">
-                    Showing {((pagination.page - 1) * pagination.limit) + 1} to{' '}
-                    {Math.min(pagination.page * pagination.limit, pagination.total)} of{' '}
-                    {pagination.total} programs
-                  </p>
-                  <Pagination
-                    currentPage={pagination.page}
-                    totalPages={pagination.totalPages}
-                    onPageChange={setPage}
+          </div>
+        ) : (programs || []).length === 0 ? (
+          <div className="bg-white rounded-xl border border-slate-200/80 shadow-soft overflow-hidden">
+            <Table
+              columns={columns}
+              data={[]}
+              rowKey={(program) => program.id}
+              emptyState={{
+                title: 'No programs yet',
+                description: 'Create your first program to get started',
+                action: {
+                  label: 'Create Program',
+                  onClick: () => setShowModal(true),
+                },
+              }}
+            />
+          </div>
+        ) : (
+          <>
+            {/* Programs (private) */}
+            {(programs || []).filter(p => !p.isPublic).length > 0 && (
+              <div className="mb-6">
+                <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-3">Programs</h3>
+                <div className="bg-white rounded-xl border border-slate-200/80 shadow-soft overflow-hidden">
+                  <Table
+                    columns={columns}
+                    data={(programs || []).filter(p => !p.isPublic)}
+                    rowKey={(program) => program.id}
+                    onRowClick={(program) => {
+                      router.push(`/admin/programs/${program.id}`);
+                    }}
                   />
                 </div>
-              )}
-            </>
-          )}
-        </div>
+              </div>
+            )}
+
+            {/* Short Courses (public) */}
+            {(programs || []).filter(p => p.isPublic).length > 0 && (
+              <div className="mb-6">
+                <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-3">Short Courses</h3>
+                <div className="bg-white rounded-xl border border-slate-200/80 shadow-soft overflow-hidden">
+                  <Table
+                    columns={columns}
+                    data={(programs || []).filter(p => p.isPublic)}
+                    rowKey={(program) => program.id}
+                    onRowClick={(program) => {
+                      router.push(`/admin/programs/${program.id}`);
+                    }}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Pagination */}
+            {pagination && pagination.totalPages > 1 && (
+              <div className="flex items-center justify-between px-5 py-4">
+                <p className="text-sm text-slate-500">
+                  Showing {((pagination.page - 1) * pagination.limit) + 1} to{' '}
+                  {Math.min(pagination.page * pagination.limit, pagination.total)} of{' '}
+                  {pagination.total} programs
+                </p>
+                <Pagination
+                  currentPage={pagination.page}
+                  totalPages={pagination.totalPages}
+                  onPageChange={setPage}
+                />
+              </div>
+            )}
+          </>
+        )}
       </div>
 
       {/* Create/Edit Modal */}

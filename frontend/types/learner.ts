@@ -39,6 +39,7 @@ export interface EnrolledProgram {
   nextLessonId?: string | null;
   nextLessonTitle?: string | null;
   enrollmentType?: 'FREE' | 'PAID' | 'ADMIN';
+  isPublic?: boolean;
   price?: string | number | null;
   currency?: string;
   freeLessons?: number;
