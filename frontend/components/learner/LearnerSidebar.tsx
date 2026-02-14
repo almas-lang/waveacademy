@@ -12,6 +12,7 @@ import {
   ChevronsLeft,
   ChevronsRight,
   GraduationCap,
+  Compass,
 } from 'lucide-react';
 import clsx from 'clsx';
 
@@ -23,6 +24,7 @@ interface LearnerSidebarProps {
 const navItems = [
   { href: '/learner', icon: Home, label: 'Home' },
   { href: '/learner/programs', icon: BookOpen, label: 'My Programs' },
+  { href: '/learner/discover', icon: Compass, label: 'Discover' },
   { href: '/learner/sessions', icon: Calendar, label: 'Sessions' },
   { href: '/learner/profile', icon: User, label: 'Profile' },
 ];

@@ -32,6 +32,8 @@ const prisma = new PrismaClient({
   log: process.env.NODE_ENV === 'development' ? ['warn', 'error'] : ['error'],
 });
 
+const { sendNonPayerSequenceEmail, sendPayerSequenceEmail } = require('./utils/email');
+
 const app = createApp(prisma);
 const PORT = process.env.PORT || 3001;
 
@@ -54,6 +56,124 @@ async function runCleanup() {
   }
 }
 
+/**
+ * Email sequences cron job
+ * Non-payer: 5 steps sent on days 1, 2, 3, 5, 7 after registration
+ * Payer: 2 steps sent on days 1, 3 after payment (step 1 = payment confirmation, sent immediately)
+ */
+async function runEmailSequences() {
+  // Day offset -> step number for non-payer sequence
+  const nonPayerSchedule = [
+    { daysAgo: 1, step: 1 },
+    { daysAgo: 2, step: 2 },
+    { daysAgo: 3, step: 3 },
+    { daysAgo: 5, step: 4 },
+    { daysAgo: 7, step: 5 },
+  ];
+
+  // Day offset -> step number for payer sequence (step 1 sent at payment time)
+  const payerSchedule = [
+    { daysAgo: 1, step: 2 },
+    { daysAgo: 3, step: 3 },
+  ];
+
+  const now = new Date();
+
+  // --- Non-payer sequence ---
+  for (const { daysAgo, step } of nonPayerSchedule) {
+    try {
+      const startOfDay = new Date(now);
+      startOfDay.setDate(startOfDay.getDate() - daysAgo);
+      startOfDay.setHours(0, 0, 0, 0);
+
+      const endOfDay = new Date(startOfDay);
+      endOfDay.setHours(23, 59, 59, 999);
+
+      // Find users who registered X days ago with at least one FREE enrollment
+      // and haven't received this step email yet
+      const users = await prisma.user.findMany({
+        where: {
+          createdAt: { gte: startOfDay, lte: endOfDay },
+          enrollments: { some: { type: 'FREE' } },
+          NOT: {
+            emailLogs: { some: { sequenceType: 'non_payer', sequenceStep: step } }
+          }
+        },
+        include: {
+          enrollments: {
+            where: { type: 'FREE' },
+            include: { program: { select: { name: true } } },
+            take: 1
+          }
+        }
+      });
+
+      for (const user of users) {
+        const enrollment = user.enrollments[0];
+        if (!enrollment) continue;
+
+        await sendNonPayerSequenceEmail(user.email, user.name, enrollment.program.name, step);
+
+        await prisma.emailLog.create({
+          data: { userId: user.id, sequenceType: 'non_payer', sequenceStep: step }
+        });
+      }
+
+      if (users.length > 0) {
+        console.log(`📧 Non-payer step ${step}: sent ${users.length} emails`);
+      }
+    } catch (err) {
+      console.error(`Email sequence error (non-payer step ${step}):`, err.message);
+    }
+  }
+
+  // --- Payer sequence ---
+  for (const { daysAgo, step } of payerSchedule) {
+    try {
+      const startOfDay = new Date(now);
+      startOfDay.setDate(startOfDay.getDate() - daysAgo);
+      startOfDay.setHours(0, 0, 0, 0);
+
+      const endOfDay = new Date(startOfDay);
+      endOfDay.setHours(23, 59, 59, 999);
+
+      // Find users who paid X days ago and haven't received this step email
+      const users = await prisma.user.findMany({
+        where: {
+          enrollments: { some: { type: 'PAID', paidAt: { gte: startOfDay, lte: endOfDay } } },
+          NOT: {
+            emailLogs: { some: { sequenceType: 'payer', sequenceStep: step } }
+          }
+        },
+        include: {
+          enrollments: {
+            where: { type: 'PAID', paidAt: { gte: startOfDay, lte: endOfDay } },
+            include: { program: { select: { name: true } } },
+            take: 1
+          }
+        }
+      });
+
+      for (const user of users) {
+        const enrollment = user.enrollments[0];
+        if (!enrollment) continue;
+
+        await sendPayerSequenceEmail(user.email, user.name, enrollment.program.name, step);
+
+        await prisma.emailLog.create({
+          data: { userId: user.id, sequenceType: 'payer', sequenceStep: step }
+        });
+      }
+
+      if (users.length > 0) {
+        console.log(`📧 Payer step ${step}: sent ${users.length} emails`);
+      }
+    } catch (err) {
+      console.error(`Email sequence error (payer step ${step}):`, err.message);
+    }
+  }
+}
+
 // Start server
 app.listen(PORT, () => {
   console.log(`🚀 LMS Backend running on port ${PORT}`);
@@ -62,6 +182,9 @@ app.listen(PORT, () => {
   // Run cleanup on startup and every 24 hours
   runCleanup();
   setInterval(runCleanup, 24 * 60 * 60 * 1000);
+
+  // Run email sequences every hour
+  setInterval(runEmailSequences, 60 * 60 * 1000);
 });
 
 // Graceful shutdown

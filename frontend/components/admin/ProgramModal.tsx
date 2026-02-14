@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Upload, X, Image, Info } from 'lucide-react';
+import { Upload, X, Image, Info, Globe, Lock } from 'lucide-react';
 import { Modal, Button, Input } from '@/components/ui';
 import { useCreateProgram, useUpdateProgram } from '@/hooks';
 import { Program, CreateProgramData } from '@/types/admin';
@@ -20,6 +20,9 @@ export default function ProgramModal({ isOpen, onClose, program }: ProgramModalP
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [thumbnailUrl, setThumbnailUrl] = useState('');
+  const [price, setPrice] = useState('');
+  const [slug, setSlug] = useState('');
+  const [isPublic, setIsPublic] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -33,10 +36,16 @@ export default function ProgramModal({ isOpen, onClose, program }: ProgramModalP
       setName(program.name);
       setDescription(program.description || '');
       setThumbnailUrl(program.thumbnailUrl || '');
+      setPrice(program.price != null ? String(program.price) : '');
+      setSlug(program.slug || '');
+      setIsPublic(program.isPublic || false);
     } else {
       setName('');
       setDescription('');
       setThumbnailUrl('');
+      setPrice('');
+      setSlug('');
+      setIsPublic(false);
     }
     setErrors({});
   }, [program, isOpen]);
@@ -91,10 +100,13 @@ export default function ProgramModal({ isOpen, onClose, program }: ProgramModalP
     e.preventDefault();
     if (!validate()) return;
 
-    const data: CreateProgramData = {
+    const data: any = {
       name: name.trim(),
       description: description.trim() || undefined,
       thumbnailUrl: thumbnailUrl || null,
+      price: price ? parseFloat(price) : null,
+      slug: slug.trim() || undefined,
+      isPublic,
     };
 
     try {
@@ -205,6 +217,98 @@ export default function ProgramModal({ isOpen, onClose, program }: ProgramModalP
               rows={3}
               className="input resize-none"
             />
+          </div>
+
+          {/* Price */}
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">
+              Price <span className="text-slate-400 font-normal">(optional, INR)</span>
+            </label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-medium">&#8377;</span>
+              <input
+                type="number"
+                value={price}
+                onChange={(e) => setPrice(e.target.value)}
+                placeholder="e.g., 499"
+                className="input pl-8"
+                min="0"
+                step="0.01"
+              />
+            </div>
+            <p className="text-xs text-slate-500 mt-1">Leave blank for free programs. Set a price to enable paid upgrades.</p>
+          </div>
+
+          {/* Slug */}
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">
+              URL Slug <span className="text-slate-400 font-normal">(for registration link)</span>
+            </label>
+            <input
+              type="text"
+              value={slug}
+              onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-'))}
+              placeholder={name ? name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') : 'e.g., mindfulness-101'}
+              className="input"
+            />
+            {slug && (
+              <p className="text-xs text-emerald-600 mt-1">
+                Registration URL: {typeof window !== 'undefined' ? window.location.origin : ''}/auth/register?program={slug}
+              </p>
+            )}
+          </div>
+
+          {/* Public / Private Toggle */}
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">
+              Visibility
+            </label>
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => setIsPublic(false)}
+                className={`flex-1 flex items-center gap-3 p-3 rounded-lg border-2 transition-all ${
+                  !isPublic
+                    ? 'border-primary-500 bg-primary-50'
+                    : 'border-slate-200 hover:border-slate-300'
+                }`}
+              >
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                  !isPublic ? 'bg-primary-500 text-white' : 'bg-slate-100 text-slate-400'
+                }`}>
+                  <Lock className="w-4 h-4" />
+                </div>
+                <div className="text-left">
+                  <p className={`text-sm font-medium ${!isPublic ? 'text-primary-700' : 'text-slate-700'}`}>Private</p>
+                  <p className="text-xs text-slate-500">Admin-enrolled only</p>
+                </div>
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsPublic(true)}
+                className={`flex-1 flex items-center gap-3 p-3 rounded-lg border-2 transition-all ${
+                  isPublic
+                    ? 'border-emerald-500 bg-emerald-50'
+                    : 'border-slate-200 hover:border-slate-300'
+                }`}
+              >
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                  isPublic ? 'bg-emerald-500 text-white' : 'bg-slate-100 text-slate-400'
+                }`}>
+                  <Globe className="w-4 h-4" />
+                </div>
+                <div className="text-left">
+                  <p className={`text-sm font-medium ${isPublic ? 'text-emerald-700' : 'text-slate-700'}`}>Public</p>
+                  <p className="text-xs text-slate-500">Visible to all registered learners</p>
+                </div>
+              </button>
+            </div>
+            {isPublic && (
+              <p className="text-xs text-amber-600 mt-2 flex items-start gap-1.5">
+                <Info className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+                Public courses are auto-enrolled for all learners. Mark lessons as &quot;Free&quot; to control which ones they can preview.
+              </p>
+            )}
           </div>
         </div>
 

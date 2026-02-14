@@ -1,8 +1,9 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { BookOpen, Calendar, Clock, Play, ArrowRight, CheckCircle, Sparkles, Flame, GraduationCap, Timer, Zap } from 'lucide-react';
+import { BookOpen, Calendar, Clock, Play, ArrowRight, CheckCircle, Sparkles, Flame, GraduationCap, Timer, Zap, Compass, Lock } from 'lucide-react';
 import { LearnerHeader } from '@/components/learner';
 import { useSidebar } from '@/lib/sidebar-context';
 import { Button, Badge } from '@/components/ui';
@@ -152,6 +153,7 @@ function DashboardSkeleton() {
 
 export default function LearnerHomePage() {
   const { openSidebar } = useSidebar();
+  const router = useRouter();
   const { data, isLoading } = useLearnerHome();
 
   if (isLoading) {
@@ -336,6 +338,11 @@ export default function LearnerHomePage() {
                         </Badge>
                       </div>
                     )}
+                    {program.enrollmentType === 'FREE' && program.progressPercentage !== 100 && (
+                      <div className="absolute top-3 left-3">
+                        <Badge variant="warning" size="sm">Free Preview</Badge>
+                      </div>
+                    )}
                   </div>
 
                   {/* Content */}
@@ -364,6 +371,22 @@ export default function LearnerHomePage() {
                           }}
                         />
                       </div>
+                      {program.enrollmentType === 'FREE' && program.freeLessons != null && program.freeLessons < program.totalLessons && (
+                        <p className="text-xs text-slate-500 mt-2">
+                          <span className="font-medium">{program.freeLessons} free</span> of {program.totalLessons} lessons ·{' '}
+                          <span
+                            role="link"
+                            className="text-accent-600 hover:text-accent-700 font-medium cursor-pointer"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              router.push(`/learner/programs/${program.id}`);
+                            }}
+                          >
+                            Unlock all →
+                          </span>
+                        </p>
+                      )}
                     </div>
 
                     <Button
@@ -390,10 +413,14 @@ export default function LearnerHomePage() {
               </div>
               <h3 className="text-xl font-bold text-slate-900 mb-2">Your learning journey starts here</h3>
               <p className="text-slate-500 max-w-sm mx-auto mb-6">
-                You&apos;re all set up! Once your administrator enrolls you in a program,
-                your courses will appear right here.
+                Browse available programs and start learning today!
               </p>
-              <div className="flex items-center justify-center gap-6 text-sm text-slate-400">
+              <Link href="/learner/discover">
+                <Button variant="primary" leftIcon={<Compass className="w-4 h-4" />}>
+                  Discover Programs
+                </Button>
+              </Link>
+              <div className="flex items-center justify-center gap-6 text-sm text-slate-400 mt-6">
                 <div className="flex items-center gap-2">
                   <BookOpen className="w-4 h-4" />
                   <span>Video lessons</span>
@@ -447,13 +474,18 @@ export default function LearnerHomePage() {
                           </p>
                         </div>
                       </div>
-                      {session.meetLink && (
+                      {session.meetLink && data?.canJoinSessions ? (
                         <a href={session.meetLink} target="_blank" rel="noopener noreferrer">
                           <Button variant="primary" size="sm">
                             Join
                           </Button>
                         </a>
-                      )}
+                      ) : !data?.canJoinSessions ? (
+                        <Badge variant="neutral" size="sm">
+                          <Lock className="w-3 h-3 mr-1" />
+                          Paid
+                        </Badge>
+                      ) : null}
                     </div>
                   ))}
                 </div>

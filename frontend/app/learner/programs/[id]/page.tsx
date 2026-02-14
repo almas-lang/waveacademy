@@ -15,8 +15,11 @@ import {
   CheckCircle,
   Clock,
   Target,
+  Lock,
+  Sparkles,
 } from 'lucide-react';
 import { LearnerHeader } from '@/components/learner';
+import UpgradeModal from '@/components/learner/UpgradeModal';
 import { useSidebar } from '@/lib/sidebar-context';
 import { Button, Badge, PageLoading } from '@/components/ui';
 import { useLearnerProgram } from '@/hooks/useLearnerData';
@@ -44,6 +47,7 @@ export default function LearnerProgramDetailPage() {
     return !!sessionStorage.getItem(storageKey);
   });
 
+  const [showUpgrade, setShowUpgrade] = useState(false);
   const { data, isLoading } = useLearnerProgram(programId);
 
   // Only auto-expand if there's no saved state (first visit)
@@ -125,6 +129,40 @@ export default function LearnerProgramDetailPage() {
       const status = getProgressStatus(item.id);
       const isCompleted = status === 'COMPLETED';
       const isInProgress = status === 'IN_PROGRESS';
+      const isLocked = item.isLocked === true;
+
+      if (isLocked) {
+        return (
+          <button
+            key={item.id}
+            onClick={() => setShowUpgrade(true)}
+            className="flex items-center justify-between py-3.5 px-4 rounded-lg bg-slate-50/50 border border-slate-100 w-full text-left transition-all hover:bg-slate-100 hover:border-slate-200 hover:opacity-100 opacity-75 group/locked"
+            style={{ marginLeft: depth * 20 }}
+          >
+            <div className="flex items-center gap-3.5">
+              <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-slate-200 text-slate-400 group-hover/locked:bg-amber-100 group-hover/locked:text-amber-600 transition-colors">
+                <Lock className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="font-medium text-slate-500 group-hover/locked:text-slate-700 transition-colors">{item.title}</p>
+                <div className="flex items-center gap-2 mt-1">
+                  <Badge variant="neutral" size="sm">{item.lessonType}</Badge>
+                  {item.durationSeconds && (
+                    <span className="flex items-center gap-1 text-xs text-slate-400">
+                      <Clock className="w-3 h-3" />
+                      {Math.round(item.durationSeconds / 60)} min
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+            <span className="text-xs text-slate-400 group-hover/locked:text-accent-600 transition-colors flex items-center gap-1.5">
+              <span className="hidden group-hover/locked:inline">Upgrade to access</span>
+              <Lock className="w-4 h-4" />
+            </span>
+          </button>
+        );
+      }
 
       return (
         <Link
@@ -156,6 +194,9 @@ export default function LearnerProgramDetailPage() {
               </p>
               <div className="flex items-center gap-2 mt-1">
                 <Badge variant="neutral" size="sm">{item.lessonType}</Badge>
+                {item.isFree && enrollmentType === 'FREE' && (
+                  <Badge variant="success" size="sm">Free</Badge>
+                )}
                 {item.durationSeconds && (
                   <span className="flex items-center gap-1 text-xs text-slate-500">
                     <Clock className="w-3 h-3" />
@@ -258,10 +299,11 @@ export default function LearnerProgramDetailPage() {
     );
   }
 
-  const { program, content, progress } = data;
+  const { program, content, progress, enrollmentType } = data;
+  const isFreeEnrollment = enrollmentType === 'FREE';
 
-  // Calculate progress
-  const countLessons = (items: LearnerContentItem[]): { total: number; completed: number } => {
+  // Calculate progress and locked counts
+  const countLessons = (items: LearnerContentItem[]): { total: number; completed: number; free: number; locked: number } => {
     return items.reduce(
       (acc, item) => {
         if (item.type === 'lesson') {
@@ -269,15 +311,19 @@ export default function LearnerProgramDetailPage() {
           if (progress?.[item.id]?.status === 'COMPLETED') {
             acc.completed += 1;
           }
+          if (item.isFree) acc.free += 1;
+          if (item.isLocked) acc.locked += 1;
         }
         if (item.children) {
           const childCounts = countLessons(item.children);
           acc.total += childCounts.total;
           acc.completed += childCounts.completed;
+          acc.free += childCounts.free;
+          acc.locked += childCounts.locked;
         }
         return acc;
       },
-      { total: 0, completed: 0 }
+      { total: 0, completed: 0, free: 0, locked: 0 }
     );
   };
 
@@ -375,6 +421,33 @@ export default function LearnerProgramDetailPage() {
           </div>
         </div>
 
+        {/* Upgrade Banner for FREE enrollments */}
+        {isFreeEnrollment && program.price && Number(program.price) > 0 && (
+          <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl p-5 mb-6">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <Sparkles className="w-5 h-5 text-amber-600" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-slate-900">Unlock Full Course</h3>
+                  <p className="text-sm text-slate-600 mt-0.5">
+                    You have access to {lessonCounts.free} of {lessonCounts.total} lessons.
+                    Upgrade to unlock all {lessonCounts.locked} remaining lessons.
+                  </p>
+                </div>
+              </div>
+              <Button
+                variant="primary"
+                onClick={() => setShowUpgrade(true)}
+                className="flex-shrink-0"
+              >
+                Upgrade for {program.currency === 'INR' ? '\u20B9' : '$'}{program.price}
+              </Button>
+            </div>
+          </div>
+        )}
+
         {/* Content Tree */}
         <div className="bg-white rounded-xl border border-slate-200/80 shadow-soft overflow-hidden">
           <div className="px-6 py-4 border-b border-slate-100">
@@ -401,6 +474,19 @@ export default function LearnerProgramDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* Upgrade Modal */}
+      {isFreeEnrollment && program.price && Number(program.price) > 0 && (
+        <UpgradeModal
+          isOpen={showUpgrade}
+          onClose={() => setShowUpgrade(false)}
+          programId={programId}
+          programName={program.name}
+          price={Number(program.price)}
+          currency={program.currency || 'INR'}
+          lockedLessonCount={lessonCounts.locked}
+        />
+      )}
     </>
   );
 }

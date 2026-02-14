@@ -80,6 +80,45 @@ export const authApi = {
     const response = await api.post('/auth/logout');
     return response.data;
   },
+
+  register: async (data: {
+    name: string;
+    email: string;
+    phone?: string;
+    password: string;
+    confirmPassword: string;
+    programSlug?: string;
+  }) => {
+    const response = await api.post('/auth/register', data);
+    return response.data;
+  },
+};
+
+// ==========================================
+// PUBLIC API (no auth)
+// ==========================================
+
+export const publicApi = {
+  getProgram: async (slug: string) => {
+    const response = await api.get(`/public/programs/${slug}`);
+    return response.data;
+  },
+};
+
+// ==========================================
+// PAYMENT API
+// ==========================================
+
+export const paymentApi = {
+  createOrder: async (programId: string) => {
+    const response = await api.post('/payments/create-order', { programId });
+    return response.data;
+  },
+
+  verify: async (orderId: string) => {
+    const response = await api.post('/payments/verify', { orderId });
+    return response.data;
+  },
 };
 
 // ==========================================
@@ -378,6 +417,11 @@ export const learnerApi = {
 
   getProfile: async () => {
     const response = await api.get('/learner/profile');
+    return response.data;
+  },
+
+  getDiscover: async () => {
+    const response = await api.get('/learner/discover');
     return response.data;
   },
 };

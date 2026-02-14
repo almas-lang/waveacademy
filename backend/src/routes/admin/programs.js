@@ -68,6 +68,10 @@ router.get('/', async (req, res, next) => {
           description: program.description,
           thumbnailUrl: program.thumbnailUrl,
           isPublished: program.isPublished,
+          isPublic: program.isPublic,
+          slug: program.slug,
+          price: program.price,
+          currency: program.currency,
           learnerCount: program._count.enrollments,
           lessonCount: program._count.lessons,
           totalDurationHours: Math.round(totalDuration / 3600 * 10) / 10,
@@ -101,7 +105,7 @@ router.get('/', async (req, res, next) => {
  */
 router.post('/', async (req, res, next) => {
   try {
-    const { name, description, thumbnailUrl } = req.body;
+    const { name, description, thumbnailUrl, price, currency, slug, isPublic } = req.body;
 
     if (!name) {
       return res.status(400).json({
@@ -110,11 +114,50 @@ router.post('/', async (req, res, next) => {
       });
     }
 
+    if (name.length > 200) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'VALIDATION_ERROR', message: 'Program name must be 200 characters or less' }
+      });
+    }
+
+    if (description && description.length > 5000) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'VALIDATION_ERROR', message: 'Description must be 5000 characters or less' }
+      });
+    }
+
+    if (slug && slug.length > 100) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'VALIDATION_ERROR', message: 'Slug must be 100 characters or less' }
+      });
+    }
+
+    // Auto-generate slug from name if not provided
+    const programSlug = slug || name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+
+    // Check slug uniqueness
+    if (programSlug) {
+      const existing = await req.prisma.program.findUnique({ where: { slug: programSlug } });
+      if (existing) {
+        return res.status(400).json({
+          success: false,
+          error: { code: 'SLUG_TAKEN', message: 'This URL slug is already in use' }
+        });
+      }
+    }
+
     const program = await req.prisma.program.create({
       data: {
         name,
         description,
-        thumbnailUrl
+        thumbnailUrl,
+        isPublic: isPublic || false,
+        price: price != null ? price : null,
+        currency: currency || 'INR',
+        slug: programSlug || null
       }
     });
 
@@ -205,6 +248,7 @@ router.get('/:id', async (req, res, next) => {
             thumbnailUrl: lesson.thumbnailUrl,
             durationSeconds: lesson.durationSeconds,
             orderIndex: lesson.orderIndex,
+            isFree: lesson.isFree,
             attachments: lesson.attachments
           }))
         };
@@ -224,6 +268,7 @@ router.get('/:id', async (req, res, next) => {
           thumbnailUrl: lesson.thumbnailUrl,
           durationSeconds: lesson.durationSeconds,
           orderIndex: lesson.orderIndex,
+          isFree: lesson.isFree,
           attachments: lesson.attachments
         });
       }
@@ -244,6 +289,7 @@ router.get('/:id', async (req, res, next) => {
         thumbnailUrl: lesson.thumbnailUrl,
         durationSeconds: lesson.durationSeconds,
         orderIndex: lesson.orderIndex,
+        isFree: lesson.isFree,
         attachments: lesson.attachments
       });
     }
@@ -256,7 +302,11 @@ router.get('/:id', async (req, res, next) => {
           name: program.name,
           description: program.description,
           thumbnailUrl: program.thumbnailUrl,
-          isPublished: program.isPublished
+          isPublished: program.isPublished,
+          isPublic: program.isPublic,
+          slug: program.slug,
+          price: program.price,
+          currency: program.currency
         },
         content
       }
@@ -273,14 +323,50 @@ router.get('/:id', async (req, res, next) => {
 router.put('/:id', async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { name, description, thumbnailUrl } = req.body;
+    const { name, description, thumbnailUrl, price, currency, slug, isPublic } = req.body;
+
+    if (name && name.length > 200) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'VALIDATION_ERROR', message: 'Program name must be 200 characters or less' }
+      });
+    }
+
+    if (description && description.length > 5000) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'VALIDATION_ERROR', message: 'Description must be 5000 characters or less' }
+      });
+    }
+
+    if (slug && slug.length > 100) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'VALIDATION_ERROR', message: 'Slug must be 100 characters or less' }
+      });
+    }
+
+    // Check slug uniqueness if changed
+    if (slug !== undefined) {
+      const existing = await req.prisma.program.findUnique({ where: { slug: slug } });
+      if (existing && existing.id !== id) {
+        return res.status(400).json({
+          success: false,
+          error: { code: 'SLUG_TAKEN', message: 'This URL slug is already in use' }
+        });
+      }
+    }
 
     const program = await req.prisma.program.update({
       where: { id },
       data: {
         name,
         description,
-        thumbnailUrl
+        thumbnailUrl,
+        ...(price !== undefined ? { price: price != null ? price : null } : {}),
+        ...(currency !== undefined ? { currency } : {}),
+        ...(slug !== undefined ? { slug: slug || null } : {}),
+        ...(isPublic !== undefined ? { isPublic } : {})
       }
     });
 
@@ -308,6 +394,25 @@ router.post('/:id/publish', async (req, res, next) => {
       where: { id },
       data: { isPublished }
     });
+
+    // Auto-enroll all learners as FREE when publishing a public course
+    if (isPublished && program.isPublic) {
+      const learners = await req.prisma.user.findMany({
+        where: { role: 'LEARNER', status: 'ACTIVE' },
+        select: { id: true }
+      });
+
+      if (learners.length > 0) {
+        await req.prisma.enrollment.createMany({
+          data: learners.map(u => ({
+            userId: u.id,
+            programId: id,
+            type: 'FREE'
+          })),
+          skipDuplicates: true
+        });
+      }
+    }
 
     clearProgramsCache();
 
@@ -472,7 +577,7 @@ router.delete('/subtopics/:id', async (req, res, next) => {
 
 router.post('/lessons', async (req, res, next) => {
   try {
-    const { programId, topicId, subtopicId, title, type, contentUrl, contentText, durationSeconds, orderIndex = 0, instructorNotes, thumbnailUrl } = req.body;
+    const { programId, topicId, subtopicId, title, type, contentUrl, contentText, durationSeconds, orderIndex = 0, instructorNotes, thumbnailUrl, isFree } = req.body;
 
     const lesson = await req.prisma.lesson.create({
       data: {
@@ -486,7 +591,8 @@ router.post('/lessons', async (req, res, next) => {
         durationSeconds,
         orderIndex,
         instructorNotes,
-        thumbnailUrl
+        thumbnailUrl,
+        isFree: isFree === true
       }
     });
 
@@ -534,11 +640,14 @@ router.post('/lessons', async (req, res, next) => {
 router.put('/lessons/:id', async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { title, type, contentUrl, contentText, durationSeconds, orderIndex, instructorNotes, thumbnailUrl } = req.body;
+    const { title, type, contentUrl, contentText, durationSeconds, orderIndex, instructorNotes, thumbnailUrl, isFree } = req.body;
 
     const lesson = await req.prisma.lesson.update({
       where: { id },
-      data: { title, type, contentUrl, contentText, durationSeconds, orderIndex, instructorNotes, thumbnailUrl }
+      data: {
+        title, type, contentUrl, contentText, durationSeconds, orderIndex, instructorNotes, thumbnailUrl,
+        ...(isFree !== undefined ? { isFree } : {})
+      }
     });
 
     clearProgramsCache();

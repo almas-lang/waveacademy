@@ -370,6 +370,7 @@ export default function ProgramDetailPage() {
           description: program.description,
           thumbnailUrl: program.thumbnailUrl,
           isPublished: program.isPublished,
+          isPublic: program.isPublic || false,
           learnerCount: 0,
           lessonCount: stats.lessons,
           totalDurationHours: 0,

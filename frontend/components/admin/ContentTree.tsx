@@ -83,6 +83,7 @@ interface FlattenedItem {
   contentText?: string;
   instructorNotes?: string;
   thumbnailUrl?: string;
+  isFree?: boolean;
   depth: number;
   parentId: string | null;
   parentType: 'program' | 'topic' | 'subtopic' | null;
@@ -113,6 +114,7 @@ function flattenTree(
       contentText: item.contentText,
       instructorNotes: item.instructorNotes,
       thumbnailUrl: item.thumbnailUrl,
+      isFree: item.isFree,
       depth,
       parentId,
       parentType,
@@ -208,6 +210,9 @@ function SortableItem({
             <span className="text-slate-700 font-medium">{item.title}</span>
             <div className="flex items-center gap-2 mt-0.5">
               <Badge variant="neutral" size="sm">{item.lessonType}</Badge>
+              {item.isFree && (
+                <Badge variant="success" size="sm">Free</Badge>
+              )}
               {item.lessonType === 'VIDEO' && !item.contentUrl && (
                 <Badge variant="warning" size="sm">No video</Badge>
               )}
@@ -416,6 +421,7 @@ export default function ContentTree({ programId, content, onRefresh }: ContentTr
   const [lessonThumbnail, setLessonThumbnail] = useState('');
   const [lessonNotes, setLessonNotes] = useState('');
   const [lessonDuration, setLessonDuration] = useState('');
+  const [lessonIsFree, setLessonIsFree] = useState(false);
   const [uploadingThumbnail, setUploadingThumbnail] = useState(false);
   const [uploadingPdf, setUploadingPdf] = useState(false);
 
@@ -497,6 +503,7 @@ export default function ContentTree({ programId, content, onRefresh }: ContentTr
     setLessonThumbnail('');
     setLessonNotes('');
     setLessonDuration('');
+    setLessonIsFree(false);
   };
 
   // Format duration for edit (convert seconds to HH:MM:SS for video)
@@ -731,6 +738,7 @@ export default function ContentTree({ programId, content, onRefresh }: ContentTr
     if (lessonThumbnail) data.thumbnailUrl = lessonThumbnail;
     if (lessonNotes) data.instructorNotes = lessonNotes;
     if (lessonDuration) data.durationSeconds = parseDuration(lessonDuration, lessonType);
+    data.isFree = lessonIsFree;
 
     try {
       await createLesson.mutateAsync(data);
@@ -761,6 +769,7 @@ export default function ContentTree({ programId, content, onRefresh }: ContentTr
     if (lessonThumbnail) data.thumbnailUrl = lessonThumbnail;
     if (lessonNotes) data.instructorNotes = lessonNotes;
     if (lessonDuration) data.durationSeconds = parseDuration(lessonDuration, lessonType);
+    data.isFree = lessonIsFree;
 
     try {
       await updateLesson.mutateAsync({ id: editingLesson.id, data, programId });
@@ -984,6 +993,7 @@ export default function ContentTree({ programId, content, onRefresh }: ContentTr
                         }
                         setLessonNotes(item.instructorNotes || '');
                         setLessonThumbnail(item.thumbnailUrl || '');
+                        setLessonIsFree(item.isFree || false);
                       } else {
                         setEditingTopic({ id: item.id, name: item.name || '', type: item.type as 'topic' | 'subtopic' });
                       }
@@ -1308,6 +1318,19 @@ export default function ContentTree({ programId, content, onRefresh }: ContentTr
               className="input resize-none"
             />
           </div>
+
+          <label className="flex items-center gap-3 p-3 bg-emerald-50 border border-emerald-200 rounded-lg cursor-pointer hover:bg-emerald-100 transition-colors">
+            <input
+              type="checkbox"
+              checked={lessonIsFree}
+              onChange={(e) => setLessonIsFree(e.target.checked)}
+              className="w-4 h-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+            />
+            <div>
+              <span className="text-sm font-medium text-slate-700">Free Preview</span>
+              <p className="text-xs text-slate-500">Free enrollment users can access this lesson without paying</p>
+            </div>
+          </label>
         </div>
 
         <Modal.Footer>
@@ -1582,6 +1605,19 @@ export default function ContentTree({ programId, content, onRefresh }: ContentTr
               className="input resize-none"
             />
           </div>
+
+          <label className="flex items-center gap-3 p-3 bg-emerald-50 border border-emerald-200 rounded-lg cursor-pointer hover:bg-emerald-100 transition-colors">
+            <input
+              type="checkbox"
+              checked={lessonIsFree}
+              onChange={(e) => setLessonIsFree(e.target.checked)}
+              className="w-4 h-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+            />
+            <div>
+              <span className="text-sm font-medium text-slate-700">Free Preview</span>
+              <p className="text-xs text-slate-500">Free enrollment users can access this lesson without paying</p>
+            </div>
+          </label>
         </div>
 
         <Modal.Footer>

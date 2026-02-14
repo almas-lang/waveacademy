@@ -17,8 +17,11 @@ import {
   Film,
   FileSpreadsheet,
   File,
+  Lock,
+  Sparkles,
 } from 'lucide-react';
 import { LearnerHeader } from '@/components/learner';
+import UpgradeModal from '@/components/learner/UpgradeModal';
 import { useSidebar } from '@/lib/sidebar-context';
 import { Button, Badge } from '@/components/ui';
 import { useLearnerLesson, useCompleteLesson, useUpdateLessonProgress, learnerKeys } from '@/hooks/useLearnerData';
@@ -109,13 +112,22 @@ export default function LessonViewerPage() {
   const programNameHint = searchParams.get('program') || '';
   const { openSidebar } = useSidebar();
   const [showCompletionCelebration, setShowCompletionCelebration] = useState(false);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
   // Scroll to top when navigating to a lesson
   useEffect(() => {
     setTimeout(() => window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior }), 0);
   }, [lessonId]);
 
-  const { data, isLoading } = useLearnerLesson(lessonId);
+  const { data, isLoading, error } = useLearnerLesson(lessonId);
+
+  // Legacy: handle LESSON_LOCKED error if backend still returns 403
+  useEffect(() => {
+    if ((error as any)?.response?.data?.error?.code === 'LESSON_LOCKED') {
+      const programId = (error as any)?.response?.data?.programId;
+      router.push(programId ? `/learner/programs/${programId}` : '/learner/programs');
+    }
+  }, [error, router]);
   const completeLesson = useCompleteLesson();
   const updateProgress = useUpdateLessonProgress();
   const queryClient = useQueryClient();
@@ -214,6 +226,61 @@ export default function LessonViewerPage() {
   }
 
   const { lesson, program, progress, navigation } = data;
+
+  // Locked lesson — show inline locked state instead of redirecting
+  if (data.isLocked) {
+    return (
+      <>
+        <LearnerHeader title={program.name} onMenuClick={openSidebar} />
+        <div className="flex-1">
+          <div className="bg-white border-b border-slate-200/80 shadow-sm">
+            <div className="flex items-center justify-between px-4 lg:px-6 py-3">
+              <Link
+                href={`/learner/programs/${program.id}`}
+                className="flex items-center gap-2 text-slate-600 hover:text-slate-900 transition-colors"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                <span className="font-medium">Back to Program</span>
+              </Link>
+            </div>
+          </div>
+
+          <div className="max-w-2xl mx-auto px-4 lg:px-6 py-16 text-center">
+            <div className="w-20 h-20 bg-amber-50 rounded-2xl flex items-center justify-center mx-auto mb-6">
+              <Lock className="w-10 h-10 text-amber-500" />
+            </div>
+            <h2 className="text-2xl font-bold text-slate-900 mb-2">{lesson.title}</h2>
+            <p className="text-slate-500 mb-8">
+              This lesson is part of the full course. Upgrade to unlock all lessons.
+            </p>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+              <Button
+                variant="primary"
+                onClick={() => setShowUpgradeModal(true)}
+                leftIcon={<Sparkles className="w-4 h-4" />}
+              >
+                Upgrade for {program.currency === 'INR' ? '\u20B9' : '$'}{program.price}
+              </Button>
+              <Link href={`/learner/programs/${program.id}`}>
+                <Button variant="ghost">Back to Program</Button>
+              </Link>
+            </div>
+          </div>
+        </div>
+
+        <UpgradeModal
+          isOpen={showUpgradeModal}
+          onClose={() => setShowUpgradeModal(false)}
+          programId={program.id}
+          programName={program.name}
+          price={Number(program.price)}
+          currency={program.currency || 'INR'}
+          lockedLessonCount={data.lockedLessonCount || 0}
+        />
+      </>
+    );
+  }
+
   const isCompleted = progress?.status === 'COMPLETED' || showCompletionCelebration;
   const progressPercent = navigation.totalLessons
     ? Math.round(((navigation.currentIndex ?? 0) / navigation.totalLessons) * 100)
@@ -447,11 +514,35 @@ export default function LessonViewerPage() {
                 <h3 className="text-lg font-semibold text-slate-900 mb-1">Lesson Complete!</h3>
                 <p className="text-slate-500 mb-6">Great job — keep up the momentum!</p>
                 {navigation.nextLesson ? (
-                  <Link href={`/learner/lessons/${navigation.nextLesson.id}?program=${encodeURIComponent(program.name)}`}>
-                    <Button variant="primary" rightIcon={<ChevronRight className="w-4 h-4" />}>
-                      Continue to Next Lesson
-                    </Button>
-                  </Link>
+                  navigation.nextLesson.isLocked ? (
+                    <div className="space-y-4 max-w-md mx-auto">
+                      <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl p-5 text-left">
+                        <div className="flex items-center gap-3 mb-2">
+                          <Sparkles className="w-5 h-5 text-amber-600" />
+                          <h4 className="font-semibold text-slate-900">Ready for more?</h4>
+                        </div>
+                        <p className="text-sm text-slate-600 mb-4">
+                          The next lesson is part of the full course. Upgrade to continue your learning journey.
+                        </p>
+                        <Button
+                          variant="primary"
+                          onClick={() => setShowUpgradeModal(true)}
+                          leftIcon={<Sparkles className="w-4 h-4" />}
+                        >
+                          Upgrade for {program.currency === 'INR' ? '\u20B9' : '$'}{program.price}
+                        </Button>
+                      </div>
+                      <Link href={`/learner/programs/${program.id}`}>
+                        <Button variant="ghost" className="w-full">Back to Program</Button>
+                      </Link>
+                    </div>
+                  ) : (
+                    <Link href={`/learner/lessons/${navigation.nextLesson.id}?program=${encodeURIComponent(program.name)}`}>
+                      <Button variant="primary" rightIcon={<ChevronRight className="w-4 h-4" />}>
+                        Continue to Next Lesson
+                      </Button>
+                    </Link>
+                  )
                 ) : (
                   <Link href={`/learner/programs/${program.id}`}>
                     <Button variant="primary">
@@ -468,11 +559,32 @@ export default function LessonViewerPage() {
                   <span className="font-medium">Lesson Complete</span>
                 </div>
                 {navigation.nextLesson ? (
-                  <Link href={`/learner/lessons/${navigation.nextLesson.id}?program=${encodeURIComponent(program.name)}`}>
-                    <Button variant="primary" rightIcon={<ChevronRight className="w-4 h-4" />}>
-                      Continue to Next Lesson
-                    </Button>
-                  </Link>
+                  navigation.nextLesson.isLocked ? (
+                    <div className="space-y-3 max-w-md mx-auto">
+                      <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl p-4 text-left">
+                        <p className="text-sm text-slate-600 mb-3">
+                          The next lesson is part of the full course.
+                        </p>
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          onClick={() => setShowUpgradeModal(true)}
+                          leftIcon={<Sparkles className="w-4 h-4" />}
+                        >
+                          Upgrade for {program.currency === 'INR' ? '\u20B9' : '$'}{program.price}
+                        </Button>
+                      </div>
+                      <Link href={`/learner/programs/${program.id}`}>
+                        <Button variant="ghost" size="sm" className="w-full">Back to Program</Button>
+                      </Link>
+                    </div>
+                  ) : (
+                    <Link href={`/learner/lessons/${navigation.nextLesson.id}?program=${encodeURIComponent(program.name)}`}>
+                      <Button variant="primary" rightIcon={<ChevronRight className="w-4 h-4" />}>
+                        Continue to Next Lesson
+                      </Button>
+                    </Link>
+                  )
                 ) : (
                   <Link href={`/learner/programs/${program.id}`}>
                     <Button variant="primary">
@@ -498,6 +610,19 @@ export default function LessonViewerPage() {
           </div>
         </div>
       </div>
+
+      {/* Upgrade Modal for locked next lesson */}
+      {data.enrollmentType === 'FREE' && program.price && Number(program.price) > 0 && (
+        <UpgradeModal
+          isOpen={showUpgradeModal}
+          onClose={() => setShowUpgradeModal(false)}
+          programId={program.id}
+          programName={program.name}
+          price={Number(program.price)}
+          currency={program.currency || 'INR'}
+          lockedLessonCount={data.lockedLessonCount || 0}
+        />
+      )}
 
       <style jsx>{`
         @keyframes fade-in {

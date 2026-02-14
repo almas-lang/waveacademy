@@ -48,6 +48,10 @@ export interface Program {
   description?: string;
   thumbnailUrl?: string;
   isPublished: boolean;
+  isPublic: boolean;
+  slug?: string;
+  price?: string | number | null;
+  currency?: string;
   learnerCount: number;
   lessonCount: number;
   totalDurationHours: number;
@@ -61,6 +65,10 @@ export interface ProgramDetail {
     description?: string;
     thumbnailUrl?: string;
     isPublished: boolean;
+    isPublic: boolean;
+    slug?: string;
+    price?: string | number | null;
+    currency?: string;
   };
   content: ContentItem[];
 }
@@ -80,6 +88,7 @@ export interface ContentItem {
   thumbnailUrl?: string;
   instructorNotes?: string;
   durationSeconds?: number;
+  isFree?: boolean;
   orderIndex: number;
   children?: ContentItem[];
   attachments?: Attachment[];

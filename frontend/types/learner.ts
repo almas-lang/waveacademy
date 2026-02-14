@@ -22,6 +22,7 @@ export interface LearnerHome {
   enrolledPrograms: EnrolledProgram[];
   continueLearning: ContinueLearning | null;
   learningStats: LearningStats;
+  canJoinSessions: boolean;
   upcomingSessions: UpcomingSession[];
   recentProgress: RecentLessonProgress[];
 }
@@ -37,6 +38,10 @@ export interface EnrolledProgram {
   lastAccessedAt?: string;
   nextLessonId?: string | null;
   nextLessonTitle?: string | null;
+  enrollmentType?: 'FREE' | 'PAID' | 'ADMIN';
+  price?: string | number | null;
+  currency?: string;
+  freeLessons?: number;
 }
 
 export interface UpcomingSession {
@@ -64,7 +69,10 @@ export interface LearnerProgram {
     name: string;
     description?: string;
     thumbnailUrl?: string;
+    price?: string | number | null;
+    currency?: string;
   };
+  enrollmentType: 'FREE' | 'PAID' | 'ADMIN';
   content: LearnerContentItem[];
   progress: LessonProgressMap;
 }
@@ -78,6 +86,7 @@ export interface LearnerContentItem {
   durationSeconds?: number;
   orderIndex: number;
   isFree?: boolean;
+  isLocked?: boolean;
   children?: LearnerContentItem[];
 }
 
@@ -103,15 +112,20 @@ export interface LearnerLesson {
   program: {
     id: string;
     name: string;
+    price?: string | number | null;
+    currency?: string;
   };
+  isLocked?: boolean;
+  enrollmentType?: 'FREE' | 'PAID' | 'ADMIN';
+  lockedLessonCount?: number;
   progress: {
     status: 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED';
     watchPositionSeconds: number;
     completedAt?: string;
-  };
+  } | null;
   navigation: {
     previousLesson?: { id: string; title: string };
-    nextLesson?: { id: string; title: string };
+    nextLesson?: { id: string; title: string; isLocked?: boolean };
     currentIndex?: number;
     totalLessons?: number;
   };
@@ -122,6 +136,18 @@ export interface LessonAttachment {
   name: string;
   fileUrl: string;
   fileType: string;
+}
+
+// Discover types
+export interface DiscoverProgram {
+  id: string;
+  name: string;
+  description?: string;
+  thumbnailUrl?: string;
+  slug?: string;
+  price?: string | number | null;
+  currency?: string;
+  lessonCount: number;
 }
 
 // Profile types

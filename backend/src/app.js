@@ -16,6 +16,8 @@ const adminDashboardRoutes = require('./routes/admin/dashboard');
 const adminSearchRoutes = require('./routes/admin/search');
 const learnerRoutes = require('./routes/learner');
 const notificationRoutes = require('./routes/notifications');
+const publicRoutes = require('./routes/public');
+const paymentRoutes = require('./routes/payments');
 
 function createApp(prisma) {
   const app = express();
@@ -41,6 +43,9 @@ function createApp(prisma) {
     credentials: true
   }));
   app.use(helmet());
+
+  // Raw body for payment webhook (HMAC verification needs raw bytes)
+  app.use('/payments/webhook', express.raw({ type: 'application/json' }));
   app.use(express.json());
   app.use(cookieParser());
 
@@ -87,11 +92,33 @@ function createApp(prisma) {
       },
       standardHeaders: true,
       legacyHeaders: false,
+      validate: { ip: false },
     });
+    const registerLimiter = rateLimit({
+      windowMs: 15 * 60 * 1000,
+      max: 5,
+      message: {
+        success: false,
+        error: {
+          code: 'TOO_MANY_REQUESTS',
+          message: 'Too many registration attempts. Please try again in 15 minutes.'
+        }
+      },
+      standardHeaders: true,
+      legacyHeaders: false,
+      validate: { ip: false },
+    });
+    // Apply register limiter specifically to /auth/register, general auth limiter to rest
+    app.use('/auth/register', registerLimiter);
+    app.use('/auth/setup-password', authLimiter);
+    app.use('/auth/reset-password', authLimiter);
     app.use('/auth', authLimiter, authRoutes);
   } else {
     app.use('/auth', authRoutes);
   }
+
+  // Public routes (no auth)
+  app.use('/public', publicRoutes);
 
   app.use('/admin/programs', adminProgramRoutes);
   app.use('/admin/learners', adminLearnerRoutes);
@@ -101,6 +128,7 @@ function createApp(prisma) {
   app.use('/admin/dashboard', adminDashboardRoutes);
   app.use('/admin/search', adminSearchRoutes);
   app.use('/learner', learnerRoutes);
+  app.use('/payments', paymentRoutes);
   app.use('/notifications', notificationRoutes);
 
   // Error handling middleware

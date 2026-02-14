@@ -9,6 +9,7 @@ import {
   LearnerLesson,
   LearnerProfile,
   UpcomingSession,
+  DiscoverProgram,
 } from '@/types/learner';
 import toast from 'react-hot-toast';
 
@@ -22,6 +23,7 @@ export const learnerKeys = {
   sessionsCalendar: (month: number, year: number) =>
     [...learnerKeys.all, 'sessions', 'calendar', month, year] as const,
   profile: () => [...learnerKeys.all, 'profile'] as const,
+  discover: () => [...learnerKeys.all, 'discover'] as const,
 };
 
 // Fetch learner home/dashboard data
@@ -88,6 +90,17 @@ export function useLearnerProfile() {
     queryFn: async () => {
       const response = await learnerApi.getProfile();
       return response.data as LearnerProfile;
+    },
+  });
+}
+
+// Fetch programs the learner is NOT enrolled in
+export function useLearnerDiscover() {
+  return useQuery({
+    queryKey: learnerKeys.discover(),
+    queryFn: async () => {
+      const response = await learnerApi.getDiscover();
+      return response.data.programs as DiscoverProgram[];
     },
   });
 }

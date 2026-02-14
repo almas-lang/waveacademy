@@ -33,23 +33,31 @@ router.get('/home', async (req, res, next) => {
 
       // Get progress only for enrolled programs
       const enrolledProgramIds = enrollments.map(e => e.programId);
-      const progress = await req.prisma.progress.findMany({
-        where: {
-          userId,
-          lesson: { programId: { in: enrolledProgramIds } }
-        },
-        include: {
-          lesson: {
-            select: {
-              id: true,
-              title: true,
-              programId: true,
-              durationSeconds: true
+      const [progress, freeLessonCounts] = await Promise.all([
+        req.prisma.progress.findMany({
+          where: {
+            userId,
+            lesson: { programId: { in: enrolledProgramIds } }
+          },
+          include: {
+            lesson: {
+              select: {
+                id: true,
+                title: true,
+                programId: true,
+                durationSeconds: true
+              }
             }
-          }
-        },
-        orderBy: { lastAccessedAt: 'desc' }
-      });
+          },
+          orderBy: { lastAccessedAt: 'desc' }
+        }),
+        req.prisma.lesson.groupBy({
+          by: ['programId'],
+          where: { programId: { in: enrolledProgramIds }, isFree: true },
+          _count: true
+        })
+      ]);
+      const freeLessonMap = new Map(freeLessonCounts.map(g => [g.programId, g._count]));
 
       // Pass 1: Calculate program progress using in-memory data
       const needsTreeLookup = []; // program IDs that need content tree to find next lesson
@@ -86,7 +94,11 @@ router.get('/home', async (req, res, next) => {
           progressPercentage: totalLessons > 0 ? Math.round((completedCount / totalLessons) * 100) : 0,
           lastAccessedAt: programProgress[0]?.lastAccessedAt || enrollment.enrolledAt,
           nextLessonId,
-          nextLessonTitle
+          nextLessonTitle,
+          enrollmentType: enrollment.type,
+          price: enrollment.program.price,
+          currency: enrollment.program.currency,
+          freeLessons: freeLessonMap.get(enrollment.programId) || 0
         };
       });
 
@@ -194,19 +206,21 @@ router.get('/home', async (req, res, next) => {
         };
       }
 
-      // Get upcoming sessions
-      const programIds = enrollments.map(e => e.programId);
-      const upcomingSessions = await req.prisma.session.findMany({
-        where: {
-          startTime: { gte: new Date() },
-          OR: [
-            { sessionPrograms: { some: { programId: null } } },
-            { sessionPrograms: { some: { programId: { in: programIds } } } }
-          ]
-        },
-        take: 5,
-        orderBy: { startTime: 'asc' }
-      });
+      // Get upcoming sessions — visible to all enrolled users, but only ADMIN/PAID can join
+      const canJoinSessions = enrollments.some(e => e.type === 'ADMIN' || e.type === 'PAID');
+      const upcomingSessions = enrolledProgramIds.length > 0
+        ? await req.prisma.session.findMany({
+            where: {
+              startTime: { gte: new Date() },
+              OR: [
+                { sessionPrograms: { some: { programId: null } } },
+                { sessionPrograms: { some: { programId: { in: enrolledProgramIds } } } }
+              ]
+            },
+            take: 5,
+            orderBy: { startTime: 'asc' }
+          })
+        : [];
 
       // Learning stats (derived from already-fetched progress)
       const completedLessons = progress.filter(p => p.status === 'COMPLETED').length;
@@ -282,11 +296,12 @@ router.get('/home', async (req, res, next) => {
           activeDaysThisWeek,
           currentStreak
         },
+        canJoinSessions,
         upcomingSessions: upcomingSessions.map(s => ({
           id: s.id,
           name: s.name,
           startTime: s.startTime,
-          meetLink: s.meetLink
+          meetLink: canJoinSessions ? s.meetLink : null
         }))
       };
     }, 120); // 2 minutes (shorter TTL since it includes progress)
@@ -365,16 +380,25 @@ router.get('/programs/:id', async (req, res, next) => {
       progressRecords.map(p => [p.lessonId, p])
     );
 
-    // Build content tree with progress
-    const buildLessonWithProgress = (lesson) => ({
-      id: lesson.id,
-      type: 'lesson',
-      title: lesson.title,
-      lessonType: lesson.type,
-      durationSeconds: lesson.durationSeconds,
-      orderIndex: lesson.orderIndex,
-      progress: progressMap.get(lesson.id) || { status: 'NOT_STARTED', watchPositionSeconds: 0 }
-    });
+    const isFreeEnrollment = enrollment.type === 'FREE';
+
+    // Build content tree with progress (and gating for FREE enrollments)
+    const buildLessonWithProgress = (lesson) => {
+      const isLocked = isFreeEnrollment && !lesson.isFree;
+      return {
+        id: lesson.id,
+        type: 'lesson',
+        title: lesson.title,
+        lessonType: lesson.type,
+        durationSeconds: lesson.durationSeconds,
+        orderIndex: lesson.orderIndex,
+        isFree: lesson.isFree,
+        isLocked,
+        progress: isLocked
+          ? { status: 'NOT_STARTED', watchPositionSeconds: 0 }
+          : (progressMap.get(lesson.id) || { status: 'NOT_STARTED', watchPositionSeconds: 0 })
+      };
+    };
 
     const content = [];
 
@@ -428,8 +452,11 @@ router.get('/programs/:id', async (req, res, next) => {
           id: program.id,
           name: program.name,
           description: program.description,
-          thumbnailUrl: program.thumbnailUrl
+          thumbnailUrl: program.thumbnailUrl,
+          price: program.price,
+          currency: program.currency
         },
+        enrollmentType: enrollment.type,
         content,
         progress
       }
@@ -451,7 +478,7 @@ router.get('/lessons/:id', async (req, res, next) => {
     const lesson = await req.prisma.lesson.findUnique({
       where: { id },
       include: {
-        program: { select: { id: true, name: true } },
+        program: { select: { id: true, name: true, price: true, currency: true } },
         attachments: true
       }
     });
@@ -477,39 +504,46 @@ router.get('/lessons/:id', async (req, res, next) => {
       });
     }
 
-    // Get or create progress
-    let progress = await req.prisma.progress.findUnique({
-      where: {
-        userId_lessonId: { userId, lessonId: id }
-      }
-    });
+    const isLessonLocked = enrollment.type === 'FREE' && !lesson.isFree;
 
-    if (!progress) {
-      progress = await req.prisma.progress.create({
-        data: {
-          userId,
-          lessonId: id,
-          status: 'NOT_STARTED'
+    // Track progress only for accessible lessons
+    let progress = null;
+    let currentStatus = 'NOT_STARTED';
+    if (!isLessonLocked) {
+      progress = await req.prisma.progress.findUnique({
+        where: {
+          userId_lessonId: { userId, lessonId: id }
         }
       });
+
+      if (!progress) {
+        progress = await req.prisma.progress.create({
+          data: {
+            userId,
+            lessonId: id,
+            status: 'NOT_STARTED'
+          }
+        });
+      }
+
+      // Update last accessed; transition NOT_STARTED → IN_PROGRESS when lesson is opened
+      const updateData = { lastAccessedAt: new Date() };
+      if (progress.status === 'NOT_STARTED') {
+        updateData.status = 'IN_PROGRESS';
+      }
+      await req.prisma.progress.update({
+        where: { id: progress.id },
+        data: updateData
+      });
+      currentStatus = updateData.status || progress.status;
+
+      // Bust home cache so "Continue Learning" reflects this lesson
+      await cacheDel(`learner:home:${userId}`);
     }
 
-    // Update last accessed; transition NOT_STARTED → IN_PROGRESS when lesson is opened
-    const updateData = { lastAccessedAt: new Date() };
-    if (progress.status === 'NOT_STARTED') {
-      updateData.status = 'IN_PROGRESS';
-    }
-    await req.prisma.progress.update({
-      where: { id: progress.id },
-      data: updateData
-    });
-
-    // Bust home cache so "Continue Learning" reflects this lesson
-    await cacheDel(`learner:home:${userId}`);
-
-    // Generate signed video URL if video
-    let contentUrl = lesson.contentUrl;
-    if (lesson.type === 'VIDEO' && contentUrl) {
+    // Generate signed video URL if video (only for accessible lessons)
+    let contentUrl = isLessonLocked ? null : lesson.contentUrl;
+    if (!isLessonLocked && lesson.type === 'VIDEO' && contentUrl) {
       // Ensure embed URL format (not /play/) for responsive sizing
       contentUrl = contentUrl.replace('/play/', '/embed/');
       contentUrl = generateSignedVideoUrl(contentUrl);
@@ -523,14 +557,14 @@ router.get('/lessons/:id', async (req, res, next) => {
           include: {
             subtopics: {
               include: {
-                lessons: { orderBy: { orderIndex: 'asc' }, select: { id: true, title: true, orderIndex: true } }
+                lessons: { orderBy: { orderIndex: 'asc' }, select: { id: true, title: true, orderIndex: true, isFree: true } }
               },
               orderBy: { orderIndex: 'asc' }
             },
             lessons: {
               where: { subtopicId: null },
               orderBy: { orderIndex: 'asc' },
-              select: { id: true, title: true, orderIndex: true }
+              select: { id: true, title: true, orderIndex: true, isFree: true }
             }
           },
           orderBy: { orderIndex: 'asc' }
@@ -538,7 +572,7 @@ router.get('/lessons/:id', async (req, res, next) => {
         lessons: {
           where: { topicId: null, subtopicId: null },
           orderBy: { orderIndex: 'asc' },
-          select: { id: true, title: true, orderIndex: true }
+          select: { id: true, title: true, orderIndex: true, isFree: true }
         }
       }
     });
@@ -569,6 +603,11 @@ router.get('/lessons/:id', async (req, res, next) => {
     const prevLesson = currentIndex > 0 ? programLessons[currentIndex - 1] : null;
     const nextLesson = currentIndex < programLessons.length - 1 ? programLessons[currentIndex + 1] : null;
 
+    const isFreeEnrollment = enrollment.type === 'FREE';
+    const lockedLessonCount = isFreeEnrollment
+      ? programLessons.filter(l => !l.isFree).length
+      : 0;
+
     res.json({
       success: true,
       data: {
@@ -577,22 +616,36 @@ router.get('/lessons/:id', async (req, res, next) => {
           title: lesson.title,
           type: lesson.type,
           contentUrl,
-          contentText: lesson.contentText,
+          contentText: isLessonLocked ? null : lesson.contentText,
           durationSeconds: lesson.durationSeconds,
-          attachments: lesson.attachments
+          attachments: isLessonLocked ? [] : lesson.attachments.map(att => ({
+            id: att.id,
+            name: att.name,
+            fileUrl: `/learner/files/${att.id}`,
+            fileType: att.fileType
+          }))
         },
         program: {
           id: lesson.program.id,
-          name: lesson.program.name
+          name: lesson.program.name,
+          price: lesson.program.price,
+          currency: lesson.program.currency
         },
-        progress: {
-          status: updateData.status || progress.status,
+        isLocked: isLessonLocked,
+        enrollmentType: enrollment.type,
+        lockedLessonCount,
+        progress: isLessonLocked ? null : {
+          status: currentStatus,
           watchPositionSeconds: progress.watchPositionSeconds,
           completedAt: progress.completedAt
         },
         navigation: {
           previousLesson: prevLesson ? { id: prevLesson.id, title: prevLesson.title } : null,
-          nextLesson: nextLesson ? { id: nextLesson.id, title: nextLesson.title } : null,
+          nextLesson: nextLesson ? {
+            id: nextLesson.id,
+            title: nextLesson.title,
+            isLocked: isFreeEnrollment && !nextLesson.isFree
+          } : null,
           currentIndex: currentIndex + 1,
           totalLessons: programLessons.length
         }
@@ -620,13 +673,18 @@ router.post('/lessons/:id/progress', async (req, res, next) => {
     }
 
     // Verify enrollment
-    const lesson = await req.prisma.lesson.findUnique({ where: { id }, select: { programId: true } });
+    const lesson = await req.prisma.lesson.findUnique({ where: { id }, select: { programId: true, isFree: true } });
     if (!lesson) return res.status(404).json({ success: false, error: { message: 'Lesson not found' } });
 
     const enrolled = await req.prisma.enrollment.findUnique({
       where: { userId_programId: { userId, programId: lesson.programId } }
     });
     if (!enrolled) return res.status(403).json({ success: false, error: { message: 'Not enrolled in this program' } });
+
+    // Content gating
+    if (enrolled.type === 'FREE' && !lesson.isFree) {
+      return res.status(403).json({ success: false, error: { code: 'LESSON_LOCKED', message: 'Upgrade to access this lesson' } });
+    }
 
     const progress = await req.prisma.progress.upsert({
       where: {
@@ -675,7 +733,7 @@ router.post('/lessons/:id/complete', async (req, res, next) => {
     // Verify lesson exists and user is enrolled
     const lesson = await req.prisma.lesson.findUnique({
       where: { id },
-      select: { programId: true }
+      select: { programId: true, isFree: true }
     });
     if (!lesson) return res.status(404).json({ success: false, error: { message: 'Lesson not found' } });
 
@@ -683,6 +741,11 @@ router.post('/lessons/:id/complete', async (req, res, next) => {
       where: { userId_programId: { userId, programId: lesson.programId } }
     });
     if (!enrolled) return res.status(403).json({ success: false, error: { message: 'Not enrolled in this program' } });
+
+    // Content gating
+    if (enrolled.type === 'FREE' && !lesson.isFree) {
+      return res.status(403).json({ success: false, error: { code: 'LESSON_LOCKED', message: 'Upgrade to access this lesson' } });
+    }
 
     await req.prisma.progress.upsert({
       where: {
@@ -730,6 +793,53 @@ router.post('/lessons/:id/complete', async (req, res, next) => {
 });
 
 /**
+ * GET /learner/discover
+ * Get programs the user is NOT enrolled in
+ */
+router.get('/discover', async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+
+    // Get enrolled program IDs
+    const enrollments = await req.prisma.enrollment.findMany({
+      where: { userId },
+      select: { programId: true }
+    });
+    const enrolledProgramIds = enrollments.map(e => e.programId);
+
+    // Find published programs not enrolled in
+    const programs = await req.prisma.program.findMany({
+      where: {
+        isPublished: true,
+        ...(enrolledProgramIds.length > 0 ? { id: { notIn: enrolledProgramIds } } : {})
+      },
+      include: {
+        _count: { select: { lessons: true } }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    res.json({
+      success: true,
+      data: {
+        programs: programs.map(p => ({
+          id: p.id,
+          name: p.name,
+          description: p.description,
+          thumbnailUrl: p.thumbnailUrl,
+          slug: p.slug,
+          price: p.price,
+          currency: p.currency,
+          lessonCount: p._count.lessons
+        }))
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
  * GET /learner/sessions
  * Get sessions for a given month (defaults to current month)
  */
@@ -743,45 +853,49 @@ router.get('/sessions', async (req, res, next) => {
     const startDate = new Date(year, month - 1, 1);
     const endDate = new Date(year, month, 0, 23, 59, 59);
 
-    // Get enrolled program IDs
+    // Get enrolled program IDs — only ADMIN/PAID get session access
     const enrollments = await req.prisma.enrollment.findMany({
       where: { userId },
-      select: { programId: true }
+      select: { programId: true, type: true }
     });
-    const programIds = enrollments.map(e => e.programId);
+    const programIds = enrollments
+      .filter(e => e.type === 'ADMIN' || e.type === 'PAID')
+      .map(e => e.programId);
 
-    const programFilter = {
-      OR: [
-        { sessionPrograms: { some: { programId: null } } },
-        { sessionPrograms: { some: { programId: { in: programIds } } } }
-      ]
-    };
-
-    const sessions = await req.prisma.session.findMany({
-      where: {
-        OR: [
-          { isRecurring: false, startTime: { gte: startDate, lte: endDate }, ...programFilter },
-          { isRecurring: true, startTime: { lte: endDate }, ...programFilter }
-        ]
-      },
-      include: {
-        sessionPrograms: {
-          include: { program: { select: { name: true } } }
-        }
-      },
-      orderBy: { startTime: 'asc' }
-    });
-
-    // Expand recurring sessions
     let expandedSessions = [];
-    for (const session of sessions) {
-      if (session.isRecurring) {
-        expandedSessions.push(...expandRecurringSession(session, startDate, endDate));
-      } else {
-        expandedSessions.push(session);
+    if (programIds.length > 0) {
+      const programFilter = {
+        OR: [
+          { sessionPrograms: { some: { programId: null } } },
+          { sessionPrograms: { some: { programId: { in: programIds } } } }
+        ]
+      };
+
+      const sessions = await req.prisma.session.findMany({
+        where: {
+          OR: [
+            { isRecurring: false, startTime: { gte: startDate, lte: endDate }, ...programFilter },
+            { isRecurring: true, startTime: { lte: endDate }, ...programFilter }
+          ]
+        },
+        include: {
+          sessionPrograms: {
+            include: { program: { select: { name: true } } }
+          }
+        },
+        orderBy: { startTime: 'asc' }
+      });
+
+      // Expand recurring sessions
+      for (const session of sessions) {
+        if (session.isRecurring) {
+          expandedSessions.push(...expandRecurringSession(session, startDate, endDate));
+        } else {
+          expandedSessions.push(session);
+        }
       }
+      expandedSessions.sort((a, b) => new Date(a.startTime) - new Date(b.startTime));
     }
-    expandedSessions.sort((a, b) => new Date(a.startTime) - new Date(b.startTime));
 
     res.json({
       success: true,
@@ -819,33 +933,38 @@ router.get('/sessions/calendar', async (req, res, next) => {
 
     const enrollments = await req.prisma.enrollment.findMany({
       where: { userId },
-      select: { programId: true }
+      select: { programId: true, type: true }
     });
-    const programIds = enrollments.map(e => e.programId);
+    const programIds = enrollments
+      .filter(e => e.type === 'ADMIN' || e.type === 'PAID')
+      .map(e => e.programId);
 
-    const programFilter = {
-      OR: [
-        { sessionPrograms: { some: { programId: null } } },
-        { sessionPrograms: { some: { programId: { in: programIds } } } }
-      ]
-    };
-
-    const sessions = await req.prisma.session.findMany({
-      where: {
+    let sessions = [];
+    if (programIds.length > 0) {
+      const programFilter = {
         OR: [
-          // Non-recurring sessions in date range
-          { isRecurring: false, startTime: { gte: startDate, lte: endDate }, ...programFilter },
-          // Recurring sessions that started before range end
-          { isRecurring: true, startTime: { lte: endDate }, ...programFilter }
+          { sessionPrograms: { some: { programId: null } } },
+          { sessionPrograms: { some: { programId: { in: programIds } } } }
         ]
-      },
-      include: {
-        sessionPrograms: {
-          include: { program: { select: { name: true } } }
-        }
-      },
-      orderBy: { startTime: 'asc' }
-    });
+      };
+
+      sessions = await req.prisma.session.findMany({
+        where: {
+          OR: [
+            // Non-recurring sessions in date range
+            { isRecurring: false, startTime: { gte: startDate, lte: endDate }, ...programFilter },
+            // Recurring sessions that started before range end
+            { isRecurring: true, startTime: { lte: endDate }, ...programFilter }
+          ]
+        },
+        include: {
+          sessionPrograms: {
+            include: { program: { select: { name: true } } }
+          }
+        },
+        orderBy: { startTime: 'asc' }
+      });
+    }
 
     // Expand recurring sessions into occurrences
     let expandedSessions = [];
@@ -965,6 +1084,60 @@ router.get('/profile', async (req, res, next) => {
       success: true,
       data
     });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * GET /learner/files/:attachmentId
+ * Authenticated file access — verifies enrollment + lesson access before redirecting to R2
+ */
+router.get('/files/:attachmentId', async (req, res, next) => {
+  try {
+    const { attachmentId } = req.params;
+    const userId = req.user.id;
+
+    const attachment = await req.prisma.lessonAttachment.findUnique({
+      where: { id: attachmentId },
+      include: {
+        lesson: {
+          select: { id: true, programId: true, isFree: true }
+        }
+      }
+    });
+
+    if (!attachment) {
+      return res.status(404).json({
+        success: false,
+        error: { code: 'NOT_FOUND', message: 'File not found' }
+      });
+    }
+
+    // Verify enrollment
+    const enrollment = await req.prisma.enrollment.findUnique({
+      where: {
+        userId_programId: { userId, programId: attachment.lesson.programId }
+      }
+    });
+
+    if (!enrollment) {
+      return res.status(403).json({
+        success: false,
+        error: { code: 'FORBIDDEN', message: 'Not enrolled in this program' }
+      });
+    }
+
+    // Content gating: FREE users can only access free lesson attachments
+    if (enrollment.type === 'FREE' && !attachment.lesson.isFree) {
+      return res.status(403).json({
+        success: false,
+        error: { code: 'LESSON_LOCKED', message: 'Upgrade to access this file' }
+      });
+    }
+
+    // Redirect to R2 URL (URL is not exposed in API responses)
+    res.redirect(attachment.fileUrl);
   } catch (error) {
     next(error);
   }

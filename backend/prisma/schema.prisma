@@ -28,11 +28,15 @@ model User {
   createdAt            DateTime  @default(now()) @map("created_at")
   updatedAt            DateTime  @updatedAt @map("updated_at")
 
+  leadSource   String?   @map("lead_source")
+
   // Relations
   enrollments   Enrollment[]
   progress      Progress[]
   notifications Notification[]
   userSessions  UserSession[]
+  payments      Payment[]
+  emailLogs     EmailLog[]
 
   @@map("users")
 }
@@ -48,6 +52,19 @@ enum UserStatus {
   PENDING_SETUP
 }
 
+enum EnrollmentType {
+  FREE
+  PAID
+  ADMIN
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  REFUNDED
+}
+
 // ============================================
 // PROGRAM MODEL
 // ============================================
@@ -57,6 +74,10 @@ model Program {
   description  String?  @db.Text
   thumbnailUrl String?  @map("thumbnail_url")
   isPublished  Boolean  @default(false) @map("is_published")
+  isPublic     Boolean  @default(false) @map("is_public")
+  slug         String?  @unique
+  price        Decimal? @db.Decimal(10, 2)
+  currency     String   @default("INR")
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
@@ -65,6 +86,7 @@ model Program {
   lessons         Lesson[]        // Direct lessons (no topic)
   enrollments     Enrollment[]
   sessionPrograms SessionProgram[]
+  payments        Payment[]
 
   @@map("programs")
 }
@@ -116,7 +138,7 @@ model Lesson {
   instructorNotes String?    @map("instructor_notes") @db.Text
   durationSeconds Int?       @map("duration_seconds")
   orderIndex      Int        @default(0) @map("order_index")
-  isFree          Boolean    @default(true) @map("is_free")
+  isFree          Boolean    @default(false) @map("is_free")
   createdAt       DateTime   @default(now()) @map("created_at")
   updatedAt       DateTime   @updatedAt @map("updated_at")
 
@@ -158,14 +180,17 @@ model LessonAttachment {
 // ENROLLMENT & PROGRESS
 // ============================================
 model Enrollment {
-  id         String   @id @default(uuid())
-  userId     String   @map("user_id")
-  programId  String   @map("program_id")
-  enrolledAt DateTime @default(now()) @map("enrolled_at")
+  id         String         @id @default(uuid())
+  userId     String         @map("user_id")
+  programId  String         @map("program_id")
+  enrolledAt DateTime       @default(now()) @map("enrolled_at")
+  type       EnrollmentType @default(ADMIN)
+  paidAt     DateTime?      @map("paid_at")
 
   // Relations
-  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  program Program @relation(fields: [programId], references: [id], onDelete: Cascade)
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  program Program  @relation(fields: [programId], references: [id], onDelete: Cascade)
+  payment Payment?
 
   @@unique([userId, programId])
   @@index([userId])
@@ -282,4 +307,49 @@ model UserSession {
   @@index([token])
   @@index([expiresAt])
   @@map("user_sessions")
+}
+
+// ============================================
+// PAYMENTS
+// ============================================
+model Payment {
+  id                String        @id @default(uuid())
+  userId            String        @map("user_id")
+  enrollmentId      String        @unique @map("enrollment_id")
+  programId         String        @map("program_id")
+  cashfreeOrderId   String        @unique @map("cashfree_order_id")
+  cashfreePaymentId String?       @map("cashfree_payment_id")
+  amount            Decimal       @db.Decimal(10, 2)
+  currency          String        @default("INR")
+  status            PaymentStatus @default(PENDING)
+  paymentMethod     String?       @map("payment_method")
+  failureReason     String?       @map("failure_reason")
+  metadata          Json?
+  createdAt         DateTime      @default(now()) @map("created_at")
+  updatedAt         DateTime      @updatedAt @map("updated_at")
+
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  program    Program    @relation(fields: [programId], references: [id], onDelete: Cascade)
+  enrollment Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([cashfreeOrderId])
+  @@index([status])
+  @@map("payments")
+}
+
+// ============================================
+// EMAIL SEQUENCE TRACKING
+// ============================================
+model EmailLog {
+  id           String   @id @default(uuid())
+  userId       String   @map("user_id")
+  sequenceType String   @map("sequence_type")
+  sequenceStep Int      @map("sequence_step")
+  sentAt       DateTime @default(now()) @map("sent_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, sequenceType, sequenceStep])
+  @@map("email_logs")
 }

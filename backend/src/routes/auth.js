@@ -8,6 +8,8 @@ const { sendPasswordSetupEmail, sendPasswordResetEmail } = require('../utils/ema
 const { authenticate } = require('../middleware/auth');
 const { cacheDel } = require('../utils/cache');
 
+const { sendWelcomeEmail } = require('../utils/email');
+
 const COOKIE_MAX_AGE = 7 * 24 * 60 * 60 * 1000; // 7 days
 
 /**
@@ -35,6 +37,8 @@ function clearTokenCookie(res) {
   });
 }
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 /**
  * Validate password strength
  * Returns error message or null if valid
@@ -49,6 +53,164 @@ function validatePassword(password) {
 }
 
 /**
+ * POST /auth/register
+ * Self-registration for learners via program slug
+ */
+router.post('/register', async (req, res, next) => {
+  try {
+    const { name, email, phone, password, confirmPassword, programSlug } = req.body;
+
+    // Validate required fields
+    if (!name || !email || !password || !confirmPassword) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'VALIDATION_ERROR', message: 'Name, email, password, and confirm password are required' }
+      });
+    }
+
+    if (!EMAIL_REGEX.test(email) || email.length > 254) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'VALIDATION_ERROR', message: 'Please enter a valid email address' }
+      });
+    }
+
+    if (name.length > 200) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'VALIDATION_ERROR', message: 'Name must be 200 characters or less' }
+      });
+    }
+
+    if (password !== confirmPassword) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'VALIDATION_ERROR', message: 'Passwords do not match' }
+      });
+    }
+
+    const passwordError = validatePassword(password);
+    if (passwordError) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'VALIDATION_ERROR', message: passwordError }
+      });
+    }
+
+    // Validate phone if provided
+    if (phone && !/^\d{10}$/.test(phone)) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'VALIDATION_ERROR', message: 'Phone number must be 10 digits' }
+      });
+    }
+
+    // Check if email already exists
+    const existingUser = await req.prisma.user.findUnique({
+      where: { email: email.toLowerCase() }
+    });
+
+    if (existingUser) {
+      return res.status(409).json({
+        success: false,
+        error: { code: 'EMAIL_EXISTS', message: 'An account with this email already exists. Please login instead.' }
+      });
+    }
+
+    // Find program by slug if provided
+    let program = null;
+    if (programSlug) {
+      program = await req.prisma.program.findUnique({
+        where: { slug: programSlug }
+      });
+
+      if (!program || !program.isPublished) {
+        return res.status(404).json({
+          success: false,
+          error: { code: 'PROGRAM_NOT_FOUND', message: 'Program not found' }
+        });
+      }
+    }
+
+    // Create user + enrollment in a transaction
+    const passwordHash = await bcrypt.hash(password, 12);
+
+    const user = await req.prisma.$transaction(async (tx) => {
+      const newUser = await tx.user.create({
+        data: {
+          email: email.toLowerCase(),
+          passwordHash,
+          name: name.trim(),
+          mobile: phone || null,
+          role: 'LEARNER',
+          status: 'ACTIVE',
+          leadSource: programSlug || 'direct'
+        }
+      });
+
+      // Auto-enroll in published public courses as FREE
+      const publishedPrograms = await tx.program.findMany({
+        where: { isPublished: true, isPublic: true },
+        select: { id: true }
+      });
+
+      if (publishedPrograms.length > 0) {
+        await tx.enrollment.createMany({
+          data: publishedPrograms.map(p => ({
+            userId: newUser.id,
+            programId: p.id,
+            type: 'FREE'
+          })),
+          skipDuplicates: true
+        });
+      }
+
+      return newUser;
+    });
+
+    // Create session + JWT
+    const token = jwt.sign(
+      { userId: user.id, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+
+    const expiresAt = new Date(Date.now() + COOKIE_MAX_AGE);
+    await req.prisma.userSession.create({
+      data: {
+        userId: user.id,
+        token,
+        deviceInfo: req.headers['user-agent'] || null,
+        ipAddress: req.ip || req.headers['x-forwarded-for'] || null,
+        expiresAt
+      }
+    });
+
+    setTokenCookie(res, token);
+
+    // Fire-and-forget welcome email
+    sendWelcomeEmail(user.email, user.name, program?.name).catch(err => {
+      console.error('Failed to send welcome email:', err);
+    });
+
+    res.status(201).json({
+      success: true,
+      data: {
+        user: {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          role: user.role
+        },
+        programId: program?.id || null
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
  * POST /auth/login
  * Login for admin and learners
  */
@@ -60,6 +222,13 @@ router.post('/login', async (req, res, next) => {
       return res.status(400).json({
         success: false,
         error: { code: 'VALIDATION_ERROR', message: 'Email and password required' }
+      });
+    }
+
+    if (!EMAIL_REGEX.test(email)) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'VALIDATION_ERROR', message: 'Please enter a valid email address' }
       });
     }
 
@@ -175,6 +344,13 @@ router.post('/login-force', async (req, res, next) => {
       return res.status(400).json({
         success: false,
         error: { code: 'VALIDATION_ERROR', message: 'Email and password required' }
+      });
+    }
+
+    if (!EMAIL_REGEX.test(email)) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'VALIDATION_ERROR', message: 'Please enter a valid email address' }
       });
     }
 
@@ -330,6 +506,13 @@ router.post('/forgot-password', async (req, res, next) => {
       });
     }
 
+    if (!EMAIL_REGEX.test(email)) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'VALIDATION_ERROR', message: 'Please enter a valid email address' }
+      });
+    }
+
     // Always return same response to prevent email enumeration
     const genericResponse = {
       success: true,
@@ -467,23 +650,25 @@ router.post('/admin/setup', async (req, res, next) => {
   try {
     const { email, password, confirmPassword, name } = req.body;
 
-    // Check if admin already exists
-    const existingAdmin = await req.prisma.user.findFirst({
-      where: { role: 'ADMIN' }
-    });
-
-    if (existingAdmin) {
-      return res.status(403).json({
-        success: false,
-        error: { code: 'ADMIN_EXISTS', message: 'An admin account already exists. Please login instead.' }
-      });
-    }
-
-    // Validate input
+    // Validate input before transaction
     if (!email || !password || !confirmPassword) {
       return res.status(400).json({
         success: false,
         error: { code: 'VALIDATION_ERROR', message: 'Email, password, and confirm password are required' }
+      });
+    }
+
+    if (!EMAIL_REGEX.test(email) || email.length > 254) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'VALIDATION_ERROR', message: 'Please enter a valid email address' }
+      });
+    }
+
+    if (name && name.length > 200) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'VALIDATION_ERROR', message: 'Name must be 200 characters or less' }
       });
     }
 
@@ -502,29 +687,42 @@ router.post('/admin/setup', async (req, res, next) => {
       });
     }
 
-    // Check if email is already in use
-    const existingUser = await req.prisma.user.findUnique({
-      where: { email: email.toLowerCase() }
-    });
-
-    if (existingUser) {
-      return res.status(400).json({
-        success: false,
-        error: { code: 'EMAIL_EXISTS', message: 'This email is already registered' }
-      });
-    }
-
-    // Create admin user
+    // Atomic check-then-create in serializable transaction to prevent race condition
     const passwordHash = await bcrypt.hash(password, 12);
-    const admin = await req.prisma.user.create({
-      data: {
-        email: email.toLowerCase(),
-        passwordHash,
-        name: name || 'Admin',
-        role: 'ADMIN',
-        status: 'ACTIVE'
+    let admin;
+    try {
+      admin = await req.prisma.$transaction(async (tx) => {
+        const existingAdmin = await tx.user.findFirst({ where: { role: 'ADMIN' } });
+        if (existingAdmin) throw new Error('ADMIN_EXISTS');
+
+        const existingUser = await tx.user.findUnique({ where: { email: email.toLowerCase() } });
+        if (existingUser) throw new Error('EMAIL_EXISTS');
+
+        return tx.user.create({
+          data: {
+            email: email.toLowerCase(),
+            passwordHash,
+            name: name || 'Admin',
+            role: 'ADMIN',
+            status: 'ACTIVE'
+          }
+        });
+      }, { isolationLevel: 'Serializable' });
+    } catch (txError) {
+      if (txError.message === 'ADMIN_EXISTS') {
+        return res.status(403).json({
+          success: false,
+          error: { code: 'ADMIN_EXISTS', message: 'An admin account already exists. Please login instead.' }
+        });
       }
-    });
+      if (txError.message === 'EMAIL_EXISTS') {
+        return res.status(400).json({
+          success: false,
+          error: { code: 'EMAIL_EXISTS', message: 'This email is already registered' }
+        });
+      }
+      throw txError;
+    }
 
     // Generate token and create session
     const token = jwt.sign(

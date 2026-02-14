@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { BookOpen, Clock, CheckCircle, Play, GraduationCap } from 'lucide-react';
@@ -11,6 +12,7 @@ import { useLearnerHome } from '@/hooks/useLearnerData';
 
 export default function LearnerProgramsPage() {
   const { openSidebar } = useSidebar();
+  const router = useRouter();
   const { data, isLoading } = useLearnerHome();
 
   if (isLoading) {
@@ -67,6 +69,11 @@ export default function LearnerProgramsPage() {
                         <CheckCircle className="w-3 h-3 mr-1" />
                         Completed
                       </Badge>
+                    </div>
+                  )}
+                  {program.enrollmentType === 'FREE' && program.progressPercentage !== 100 && (
+                    <div className="absolute top-3 left-3">
+                      <Badge variant="warning" size="sm">Free Preview</Badge>
                     </div>
                   )}
 
@@ -126,6 +133,22 @@ export default function LearnerProgramsPage() {
                         }}
                       />
                     </div>
+                    {program.enrollmentType === 'FREE' && program.freeLessons != null && program.freeLessons < program.totalLessons && (
+                      <p className="text-xs text-slate-500 mt-2">
+                        <span className="font-medium">{program.freeLessons} free</span> of {program.totalLessons} lessons ·{' '}
+                        <span
+                          role="link"
+                          className="text-accent-600 hover:text-accent-700 font-medium cursor-pointer"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            router.push(`/learner/programs/${program.id}`);
+                          }}
+                        >
+                          Unlock all →
+                        </span>
+                      </p>
+                    )}
                   </div>
 
                   <Button
@@ -151,7 +174,11 @@ export default function LearnerProgramsPage() {
               </div>
               <h3 className="text-lg font-semibold text-slate-900 mb-2">No programs yet</h3>
               <p className="text-slate-500 max-w-sm mx-auto">
-                You are not enrolled in any programs. Contact your administrator to get enrolled in courses.
+                You are not enrolled in any programs.{' '}
+                <Link href="/learner/discover" className="text-accent-600 hover:text-accent-700 font-medium">
+                  Discover new programs
+                </Link>{' '}
+                to get started.
               </p>
             </div>
           </div>
