@@ -93,7 +93,7 @@ export default function LearnerSidebar({ isOpen, onClose }: LearnerSidebarProps)
             {!isCollapsed && (
               <div className="flex flex-col">
                 <span className="font-semibold text-white text-sm leading-tight">
-                  XperienceWave
+                  Wave Academy
                 </span>
                 <span className="text-[10px] text-primary-100 font-medium tracking-wide uppercase">
                   Learning Portal

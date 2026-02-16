@@ -318,7 +318,7 @@ export default function ProgramModal({ isOpen, onClose, program }: ProgramModalP
             {isPublic && (
               <p className="text-xs text-amber-600 mt-2 flex items-start gap-1.5">
                 <Info className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
-                Public courses are auto-enrolled for all learners. Mark lessons as &quot;Free&quot; to control which ones they can preview.
+                Public programs are discoverable to all learners. Mark lessons as &quot;Free&quot; to control which ones they can preview.
               </p>
             )}
           </div>

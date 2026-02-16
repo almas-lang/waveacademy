@@ -27,7 +27,7 @@ export default function LearnerProgramsPage() {
   const programs = data?.enrolledPrograms || [];
   const completedCount = programs.filter(p => p.progressPercentage === 100).length;
   const privatePrograms = programs.filter(p => !p.isPublic);
-  const shortCourses = programs.filter(p => p.isPublic);
+  const publicPrograms = programs.filter(p => p.isPublic);
 
   const renderProgramCard = (program: typeof programs[number]) => (
     <Link
@@ -150,7 +150,7 @@ export default function LearnerProgramsPage() {
           {program.progressPercentage === 0
             ? 'Start Learning'
             : program.progressPercentage === 100
-              ? 'Review Course'
+              ? 'Review Program'
               : 'Continue Learning'}
         </Button>
       </div>
@@ -178,12 +178,12 @@ export default function LearnerProgramsPage() {
               </div>
             )}
 
-            {/* Short Courses (public) */}
-            {shortCourses.length > 0 && (
+            {/* Public Programs */}
+            {publicPrograms.length > 0 && (
               <div>
-                <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-4">Short Courses</h3>
+                <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-4">Public Programs</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-                  {shortCourses.map(renderProgramCard)}
+                  {publicPrograms.map(renderProgramCard)}
                 </div>
               </div>
             )}

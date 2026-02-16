@@ -29,7 +29,7 @@ async function sendPasswordSetupEmail(email, name, token) {
     await resend.emails.send({
       from: fromEmail,
       to: email,
-      subject: 'Welcome to XperienceWave - Set Up Your Password',
+      subject: 'Welcome to Wave Academy - Set Up Your Password',
       html: `
         <!DOCTYPE html>
         <html>
@@ -51,14 +51,14 @@ async function sendPasswordSetupEmail(email, name, token) {
         </head>
         <body>
           <div class="container">
-            <h2>Welcome to XperienceWave! 🎉</h2>
+            <h2>Welcome to Wave Academy! 🎉</h2>
             <p>Hi ${escapeHtml(name)},</p>
-            <p>You've been enrolled in a program on XperienceWave. To get started, please set up your password:</p>
+            <p>You've been enrolled in a program on Wave Academy. To get started, please set up your password:</p>
             <a href="${setupUrl}" class="button">Set Up Password</a>
             <p>This link will expire in 24 hours.</p>
             <p>If you didn't expect this email, please ignore it.</p>
             <div class="footer">
-              <p>XperienceWave Learning Platform</p>
+              <p>Wave Academy | Powered by Xperience Wave</p>
             </div>
           </div>
         </body>
@@ -82,7 +82,7 @@ async function sendPasswordResetEmail(email, name, token) {
     await resend.emails.send({
       from: fromEmail,
       to: email,
-      subject: 'Reset Your Password - XperienceWave',
+      subject: 'Reset Your Password - Wave Academy',
       html: `
         <!DOCTYPE html>
         <html>
@@ -111,7 +111,7 @@ async function sendPasswordResetEmail(email, name, token) {
             <p>This link will expire in 1 hour.</p>
             <p>If you didn't request this, please ignore this email.</p>
             <div class="footer">
-              <p>XperienceWave Learning Platform</p>
+              <p>Wave Academy | Powered by Xperience Wave</p>
             </div>
           </div>
         </body>
@@ -164,7 +164,7 @@ async function sendSessionReminderEmail(email, name, session) {
             </div>
             ${session.meetLink ? `<a href="${session.meetLink}" class="button">Join Google Meet</a>` : ''}
             <div class="footer">
-              <p>XperienceWave Learning Platform</p>
+              <p>Wave Academy | Powered by Xperience Wave</p>
             </div>
           </div>
         </body>
@@ -215,7 +215,7 @@ function emailWrapper(content) {
       <div class="container">
         ${content}
         <div class="footer">
-          <p>XperienceWave Learning Platform</p>
+          <p>Wave Academy | Powered by Xperience Wave</p>
         </div>
       </div>
     </body>
@@ -237,13 +237,13 @@ async function sendWelcomeEmail(email, name, programName) {
       to: email,
       subject: programName
         ? `Welcome! Your free lessons for ${programName} are ready`
-        : 'Welcome to XperienceWave!',
+        : 'Welcome to Wave Academy!',
       html: emailWrapper(`
-        <h2>Welcome to XperienceWave!</h2>
+        <h2>Welcome to Wave Academy!</h2>
         <p>Hi ${escapeHtml(name)},</p>
         <p>${programText}</p>
         <a href="${frontendUrl}/learner" class="button">Start Learning</a>
-        <p>We're excited to have you on board. Dive into your free content and explore what XperienceWave has to offer.</p>
+        <p>We're excited to have you on board. Dive into your free content and explore what Wave Academy has to offer.</p>
       `)
     });
     console.log(`Welcome email sent to ${email}`);
@@ -301,9 +301,9 @@ const nonPayerEmails = {
     content: (name, programName) => `
       <h2>What You'll Learn</h2>
       <p>Hi ${escapeHtml(name)},</p>
-      <p>The full <strong>${escapeHtml(programName)}</strong> course covers everything you need to build real skills — from fundamentals to advanced techniques.</p>
+      <p>The full <strong>${escapeHtml(programName)}</strong> program covers everything you need to build real skills — from fundamentals to advanced techniques.</p>
       <div class="highlight">
-        <strong>The full course includes:</strong><br>
+        <strong>The full program includes:</strong><br>
         ✅ Step-by-step video lessons<br>
         ✅ Practical examples and exercises<br>
         ✅ Lifetime access to all content
@@ -319,7 +319,7 @@ const nonPayerEmails = {
       <p>Hi ${escapeHtml(name)},</p>
       <p>Other learners are already making progress in <strong>${escapeHtml(programName)}</strong> and building valuable skills.</p>
       <p>The free preview gives you a taste — upgrading unlocks the complete learning experience with all lessons and materials.</p>
-      <a href="${frontendUrl}/learner" class="button-secondary">View Your Course</a>
+      <a href="${frontendUrl}/learner" class="button-secondary">View Your Program</a>
     `
   },
   4: {
@@ -338,8 +338,8 @@ const nonPayerEmails = {
       <h2>One Last Reminder</h2>
       <p>Hi ${escapeHtml(name)},</p>
       <p>This is your final reminder about <strong>${escapeHtml(programName)}</strong>.</p>
-      <p>Your free lessons are still available. Whenever you're ready, you can upgrade to unlock the full course and start your learning journey.</p>
-      <a href="${frontendUrl}/learner" class="button-secondary">View Course</a>
+      <p>Your free lessons are still available. Whenever you're ready, you can upgrade to unlock the full program and start your learning journey.</p>
+      <a href="${frontendUrl}/learner" class="button-secondary">View Program</a>
       <p style="font-size: 13px; color: #666;">This is the last email we'll send about this. You're always welcome back when the time is right.</p>
     `
   }
@@ -369,7 +369,7 @@ const payerEmails = {
   2: {
     subject: (programName) => `Tips to get the most from ${programName}`,
     content: (name, programName) => `
-      <h2>Get the Most From Your Course</h2>
+      <h2>Get the Most From Your Program</h2>
       <p>Hi ${escapeHtml(name)},</p>
       <p>Now that you have full access to <strong>${escapeHtml(programName)}</strong>, here are a few tips to maximize your learning:</p>
       <div class="highlight">

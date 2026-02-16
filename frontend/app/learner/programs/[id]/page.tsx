@@ -430,7 +430,7 @@ export default function LearnerProgramDetailPage() {
                   <Sparkles className="w-5 h-5 text-amber-600" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-slate-900">Unlock Full Course</h3>
+                  <h3 className="font-semibold text-slate-900">Unlock Full Program</h3>
                   <p className="text-sm text-slate-600 mt-0.5">
                     You have access to {lessonCounts.free} of {lessonCounts.total} lessons.
                     Upgrade to unlock all {lessonCounts.locked} remaining lessons.
@@ -451,7 +451,7 @@ export default function LearnerProgramDetailPage() {
         {/* Content Tree */}
         <div className="bg-white rounded-xl border border-slate-200/80 shadow-soft overflow-hidden">
           <div className="px-6 py-4 border-b border-slate-100">
-            <h2 className="text-lg font-semibold text-slate-900">Course Content</h2>
+            <h2 className="text-lg font-semibold text-slate-900">Program Content</h2>
             <p className="text-sm text-slate-500 mt-0.5">
               {lessonCounts.total} lessons • {lessonCounts.completed} completed
             </p>
@@ -468,7 +468,7 @@ export default function LearnerProgramDetailPage() {
                   <BookOpen className="w-8 h-8 text-slate-400" />
                 </div>
                 <p className="text-slate-600 font-medium mb-1">No content available</p>
-                <p className="text-sm text-slate-400">Check back later for course materials</p>
+                <p className="text-sm text-slate-400">Check back later for program materials</p>
               </div>
             )}
           </div>

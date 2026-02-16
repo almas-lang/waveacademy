@@ -130,8 +130,8 @@ export default function LoginPage() {
               <GraduationCap className="w-8 h-8 text-white" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-white">XperienceWave</h1>
-              <p className="text-primary-100 text-sm">Learning Management System</p>
+              <h1 className="text-2xl font-bold text-white">Wave Academy</h1>
+              <p className="text-primary-100 text-sm">Powered by Xperience Wave</p>
             </div>
           </div>
 
@@ -141,7 +141,7 @@ export default function LoginPage() {
           </h2>
 
           <p className="text-primary-100 text-lg max-w-md leading-relaxed">
-            Access your programs, courses, track your progress, and achieve your learning goals with our comprehensive platform.
+            Access your programs, track your progress, and achieve your learning goals with our comprehensive platform.
           </p>
 
           {/* Stats */}
@@ -171,7 +171,7 @@ export default function LoginPage() {
               <div className="w-10 h-10 bg-accent-500 rounded-lg flex items-center justify-center">
                 <GraduationCap className="w-6 h-6 text-white" />
               </div>
-              <span className="text-xl font-bold text-primary-600">XperienceWave</span>
+              <span className="text-xl font-bold text-primary-600">Wave Academy</span>
             </div>
             <p className="text-slate-500 text-sm">Sign in to continue learning</p>
           </div>

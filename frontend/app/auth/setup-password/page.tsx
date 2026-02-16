@@ -107,7 +107,7 @@ function SetupPasswordForm() {
             </div>
             <h2 className="text-xl font-semibold text-slate-900 mb-2">Password Set!</h2>
             <p className="text-slate-600 mb-6">
-              Your password has been set successfully. You can now login to access your courses.
+              Your password has been set successfully. You can now login to access your programs.
             </p>
             <Link
               href="/auth/login"
@@ -132,7 +132,7 @@ function SetupPasswordForm() {
             <div className="w-10 h-10 bg-accent-500 rounded-lg flex items-center justify-center">
               <GraduationCap className="w-6 h-6 text-white" />
             </div>
-            <span className="text-xl font-bold text-primary-600">XperienceWave</span>
+            <span className="text-xl font-bold text-primary-600">Wave Academy</span>
           </div>
         </div>
 

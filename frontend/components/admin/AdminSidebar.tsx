@@ -86,14 +86,14 @@ export default function AdminSidebar({ isOpen, onClose }: AdminSidebarProps) {
           <Link href="/admin" className="flex items-center gap-2.5 group">
             <div className="relative flex-shrink-0">
               <div className="w-9 h-9 bg-white rounded-lg flex items-center justify-center shadow-sm">
-                <span className="text-primary-600 font-bold text-sm tracking-tight">XW</span>
+                <span className="text-primary-600 font-bold text-sm tracking-tight">WA</span>
               </div>
               <div className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-accent-500 rounded-full ring-2 ring-primary-500" />
             </div>
             {!isCollapsed && (
               <div className="flex flex-col">
                 <span className="font-semibold text-white text-sm leading-tight">
-                  XperienceWave
+                  Wave Academy
                 </span>
                 <span className="text-[10px] text-primary-100 font-medium tracking-wide uppercase">
                   Admin Portal

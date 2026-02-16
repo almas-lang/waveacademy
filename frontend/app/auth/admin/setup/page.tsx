@@ -143,8 +143,8 @@ export default function AdminSetupPage() {
               <GraduationCap className="w-8 h-8 text-white" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-white">XperienceWave</h1>
-              <p className="text-primary-100 text-sm">Learning Management System</p>
+              <h1 className="text-2xl font-bold text-white">Wave Academy</h1>
+              <p className="text-primary-100 text-sm">Powered by Xperience Wave</p>
             </div>
           </div>
 
@@ -168,7 +168,7 @@ export default function AdminSetupPage() {
               <div className="w-10 h-10 bg-accent-500 rounded-lg flex items-center justify-center">
                 <GraduationCap className="w-6 h-6 text-white" />
               </div>
-              <span className="text-xl font-bold text-primary-600">XperienceWave</span>
+              <span className="text-xl font-bold text-primary-600">Wave Academy</span>
             </div>
             <p className="text-slate-500 text-sm">Create your admin account</p>
           </div>

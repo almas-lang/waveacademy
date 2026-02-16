@@ -123,13 +123,13 @@ export default function RegisterPage() {
             <div className="w-12 h-12 bg-white/20 backdrop-blur rounded-xl flex items-center justify-center">
               <GraduationCap className="w-7 h-7 text-white" />
             </div>
-            <h1 className="text-2xl font-bold text-white">XperienceWave</h1>
+            <h1 className="text-2xl font-bold text-white">Wave Academy</h1>
           </div>
           <h2 className="text-3xl font-bold text-white leading-tight mb-4">
             Start your learning journey
           </h2>
           <p className="text-accent-100 text-lg leading-relaxed">
-            Create your free account and get instant access to preview lessons. Upgrade anytime to unlock the full course.
+            Create your free account and get instant access to preview lessons. Upgrade anytime to unlock the full program.
           </p>
         </div>
         {program && (
@@ -144,7 +144,7 @@ export default function RegisterPage() {
               <span>{program.freeLessons} free to preview</span>
               {program.price && Number(program.price) > 0 && (
                 <span className="bg-white/20 px-2 py-0.5 rounded-full font-medium">
-                  Full course: {program.currency === 'INR' ? '\u20B9' : '$'}{program.price}
+                  Full program: {program.currency === 'INR' ? '\u20B9' : '$'}{program.price}
                 </span>
               )}
             </div>
@@ -160,14 +160,14 @@ export default function RegisterPage() {
             <div className="w-10 h-10 bg-accent-600 rounded-xl flex items-center justify-center">
               <GraduationCap className="w-6 h-6 text-white" />
             </div>
-            <h1 className="text-xl font-bold text-slate-900">XperienceWave</h1>
+            <h1 className="text-xl font-bold text-slate-900">Wave Academy</h1>
           </div>
 
           <h2 className="text-2xl font-bold text-slate-900 mb-2">Create your account</h2>
           <p className="text-slate-500 mb-8">
             {program
               ? `Sign up to start learning ${program.name}`
-              : 'Get started with XperienceWave'
+              : 'Get started with Wave Academy'
             }
           </p>
 

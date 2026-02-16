@@ -133,7 +133,7 @@ function ResetPasswordForm() {
             <div className="w-10 h-10 bg-accent-500 rounded-lg flex items-center justify-center">
               <GraduationCap className="w-6 h-6 text-white" />
             </div>
-            <span className="text-xl font-bold text-primary-600">XperienceWave</span>
+            <span className="text-xl font-bold text-primary-600">Wave Academy</span>
           </div>
         </div>
 

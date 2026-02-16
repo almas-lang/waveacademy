@@ -136,7 +136,7 @@ export default function UpgradeModal({
           </button>
           <div className="flex items-center gap-3 mb-3">
             <Sparkles className="w-6 h-6" />
-            <h2 className="text-xl font-bold">Unlock Full Course</h2>
+            <h2 className="text-xl font-bold">Unlock Full Program</h2>
           </div>
           <p className="text-accent-100 text-sm">{programName}</p>
         </div>
@@ -161,7 +161,7 @@ export default function UpgradeModal({
             </div>
             <div className="flex items-center gap-3 text-sm">
               <CheckCircle className="w-5 h-5 text-emerald-500 flex-shrink-0" />
-              <span className="text-slate-700">Lifetime access to course content</span>
+              <span className="text-slate-700">Lifetime access to program content</span>
             </div>
             <div className="flex items-center gap-3 text-sm">
               <Shield className="w-5 h-5 text-emerald-500 flex-shrink-0" />

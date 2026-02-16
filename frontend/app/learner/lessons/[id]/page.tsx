@@ -251,7 +251,7 @@ export default function LessonViewerPage() {
             </div>
             <h2 className="text-2xl font-bold text-slate-900 mb-2">{lesson.title}</h2>
             <p className="text-slate-500 mb-8">
-              This lesson is part of the full course. Upgrade to unlock all lessons.
+              This lesson is part of the full program. Upgrade to unlock all lessons.
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
               <Button
@@ -522,7 +522,7 @@ export default function LessonViewerPage() {
                           <h4 className="font-semibold text-slate-900">Ready for more?</h4>
                         </div>
                         <p className="text-sm text-slate-600 mb-4">
-                          The next lesson is part of the full course. Upgrade to continue your learning journey.
+                          The next lesson is part of the full program. Upgrade to continue your learning journey.
                         </p>
                         <Button
                           variant="primary"
@@ -563,7 +563,7 @@ export default function LessonViewerPage() {
                     <div className="space-y-3 max-w-md mx-auto">
                       <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl p-4 text-left">
                         <p className="text-sm text-slate-600 mb-3">
-                          The next lesson is part of the full course.
+                          The next lesson is part of the full program.
                         </p>
                         <Button
                           variant="primary"

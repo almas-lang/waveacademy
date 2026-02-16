@@ -180,7 +180,7 @@ export default function LearnerHomePage() {
   const sessionCountdown = nextSession ? getSessionCountdown(nextSession.startTime) : null;
   const hasPrograms = data?.enrolledPrograms && data.enrolledPrograms.length > 0;
   const privatePrograms = (data?.enrolledPrograms || []).filter(p => !p.isPublic);
-  const shortCourses = (data?.enrolledPrograms || []).filter(p => p.isPublic);
+  const publicPrograms = (data?.enrolledPrograms || []).filter(p => p.isPublic);
 
   return (
     <>
@@ -289,7 +289,7 @@ export default function LearnerHomePage() {
           </div>
         )}
 
-        {/* Programs & Short Courses */}
+        {/* Programs */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-5">
             <div>
@@ -412,12 +412,12 @@ export default function LearnerHomePage() {
                 </div>
               )}
 
-              {/* Short Courses (public) */}
-              {shortCourses.length > 0 && (
+              {/* Public Programs */}
+              {publicPrograms.length > 0 && (
                 <div>
-                  <h4 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-4">Short Courses</h4>
+                  <h4 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-4">Public Programs</h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-                    {shortCourses.map((program, index) => (
+                    {publicPrograms.map((program, index) => (
                       <Link
                         key={program.id}
                         href={program.nextLessonId
@@ -551,20 +551,20 @@ export default function LearnerHomePage() {
           )}
         </div>
 
-        {/* Courses You Might Like */}
+        {/* Programs You Might Like */}
         {data?.suggestedCourses && data.suggestedCourses.length > 0 && (
           <div className="mb-8 animate-slide-up opacity-0 [animation-fill-mode:forwards] [animation-delay:150ms]">
-            <h3 className="text-lg font-semibold text-slate-900 mb-5">Courses You Might Like</h3>
+            <h3 className="text-lg font-semibold text-slate-900 mb-5">Programs You Might Like</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-              {data.suggestedCourses.map((course: DiscoverProgram, index: number) => (
+              {data.suggestedCourses.map((program: DiscoverProgram, index: number) => (
                 <button
-                  key={course.id}
+                  key={program.id}
                   type="button"
                   disabled={selfEnroll.isPending}
                   onClick={async () => {
                     try {
-                      await selfEnroll.mutateAsync(course.id);
-                      router.push(`/learner/programs/${course.id}`);
+                      await selfEnroll.mutateAsync(program.id);
+                      router.push(`/learner/programs/${program.id}`);
                     } catch {
                       // error handled by mutation onError
                     }
@@ -574,10 +574,10 @@ export default function LearnerHomePage() {
                 >
                   {/* Thumbnail */}
                   <div className="relative">
-                    {course.thumbnailUrl ? (
+                    {program.thumbnailUrl ? (
                       <Image
-                        src={course.thumbnailUrl}
-                        alt={course.name}
+                        src={program.thumbnailUrl}
+                        alt={program.name}
                         width={400}
                         height={144}
                         className="w-full h-36 object-cover"
@@ -587,10 +587,10 @@ export default function LearnerHomePage() {
                         <BookOpen className="w-12 h-12 text-slate-300" />
                       </div>
                     )}
-                    {course.price && Number(course.price) > 0 && (
+                    {program.price && Number(program.price) > 0 && (
                       <div className="absolute top-3 right-3">
                         <Badge variant="info" size="sm">
-                          {course.currency === 'INR' ? '\u20B9' : '$'}{Number(course.price).toLocaleString()}
+                          {program.currency === 'INR' ? '\u20B9' : '$'}{Number(program.price).toLocaleString()}
                         </Badge>
                       </div>
                     )}
@@ -599,15 +599,15 @@ export default function LearnerHomePage() {
                   {/* Content */}
                   <div className="p-5">
                     <h4 className="font-semibold text-slate-900 mb-1 group-hover:text-accent-600 transition-colors">
-                      {course.name}
+                      {program.name}
                     </h4>
-                    {course.description && (
-                      <p className="text-sm text-slate-500 line-clamp-2 mb-3">{course.description}</p>
+                    {program.description && (
+                      <p className="text-sm text-slate-500 line-clamp-2 mb-3">{program.description}</p>
                     )}
                     <div className="flex items-center justify-between">
-                      <span className="text-xs text-slate-400">{course.lessonCount} lesson{course.lessonCount !== 1 ? 's' : ''}</span>
+                      <span className="text-xs text-slate-400">{program.lessonCount} lesson{program.lessonCount !== 1 ? 's' : ''}</span>
                       <span className="text-sm font-medium text-accent-600 group-hover:text-accent-700 flex items-center gap-1">
-                        View Course <ArrowRight className="w-3.5 h-3.5" />
+                        View Program <ArrowRight className="w-3.5 h-3.5" />
                       </span>
                     </div>
                   </div>

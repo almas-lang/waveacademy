@@ -1,4 +1,4 @@
-// XperienceWave LMS - Backend Entry Point
+// Wave Academy - Backend Entry Point
 require('dotenv').config();
 const { PrismaClient } = require('@prisma/client');
 const createApp = require('./app');

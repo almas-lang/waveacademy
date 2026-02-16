@@ -164,7 +164,7 @@ export function useUpdateLessonProgress() {
   return { ...mutation, mutate: throttledMutate, flush };
 }
 
-// Self-enroll in a public course (creates FREE enrollment)
+// Self-enroll in a public program (creates FREE enrollment)
 export function useSelfEnroll() {
   const queryClient = useQueryClient();
 

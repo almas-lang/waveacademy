@@ -62,7 +62,7 @@ export default function LearnerHeader({ title, subtitle, onMenuClick }: LearnerH
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
               <input
                 type="text"
-                placeholder="Search courses, lessons..."
+                placeholder="Search programs, lessons..."
                 className="w-full pl-10 pr-4 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg
                          placeholder:text-slate-400 text-slate-700
                          focus:outline-none focus:bg-white focus:border-slate-300 focus:ring-2 focus:ring-slate-500/10

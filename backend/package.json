@@ -1,7 +1,7 @@
 {
   "name": "lms-backend",
   "version": "1.0.0",
-  "description": "XperienceWave LMS Backend API",
+  "description": "Wave Academy Backend API",
   "main": "src/index.js",
   "scripts": {
     "dev": "nodemon src/index.js",

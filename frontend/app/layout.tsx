@@ -6,8 +6,8 @@ import { Providers } from './providers';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata = {
-  title: 'XperienceWave - Learning Platform',
-  description: 'Transform your learning journey with XperienceWave',
+  title: 'Wave Academy - Learning Platform',
+  description: 'Transform your learning journey with Wave Academy',
 };
 
 export default function RootLayout({
