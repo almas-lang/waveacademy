@@ -55,6 +55,10 @@ router.get('/analytics', async (req, res, next) => {
         recentEnrollments,
         recentCompletions,
         dailyActiveUsersRaw,
+        totalRevenueAgg,
+        revenueThisMonthAgg,
+        revenueLastMonthAgg,
+        dailyRevenueRaw,
       ] = await Promise.all([
         // Programs
         prisma.program.count(),
@@ -150,6 +154,37 @@ router.get('/analytics', async (req, res, next) => {
             WHERE us.last_active >= ${thirtyDaysAgo}
             GROUP BY DATE_TRUNC('day', us.last_active)
           ) u ON DATE_TRUNC('day', d.day) = u.day
+          ORDER BY d.day ASC
+        `,
+
+        // Revenue: total
+        prisma.payment.aggregate({ where: { status: 'SUCCESS' }, _sum: { amount: true } }),
+
+        // Revenue: this month
+        prisma.payment.aggregate({ where: { status: 'SUCCESS', createdAt: { gte: startOfMonth } }, _sum: { amount: true } }),
+
+        // Revenue: last month
+        prisma.payment.aggregate({ where: { status: 'SUCCESS', createdAt: { gte: startOfLastMonth, lt: startOfMonth } }, _sum: { amount: true } }),
+
+        // Daily revenue (last 6 months)
+        prisma.$queryRaw`
+          SELECT
+            d.day AS raw_date,
+            TO_CHAR(d.day, 'Mon DD') AS date,
+            CAST(COALESCE(p.total, 0) AS FLOAT) AS revenue
+          FROM generate_series(
+            ${sixMonthsAgo}::date,
+            ${startOfToday}::date,
+            '1 day'::interval
+          ) AS d(day)
+          LEFT JOIN (
+            SELECT
+              DATE_TRUNC('day', created_at) AS day,
+              SUM(amount) AS total
+            FROM payments
+            WHERE status = 'SUCCESS' AND created_at >= ${sixMonthsAgo}
+            GROUP BY DATE_TRUNC('day', created_at)
+          ) p ON DATE_TRUNC('day', d.day) = p.day
           ORDER BY d.day ASC
         `,
       ]);
@@ -256,6 +291,54 @@ router.get('/analytics', async (req, res, next) => {
         users: d.users,
       }));
 
+      // ---- Revenue aggregation ----
+      const totalRevenue = totalRevenueAgg._sum.amount || 0;
+      const revenueThisMonth = revenueThisMonthAgg._sum.amount || 0;
+      const revenueLastMonth = revenueLastMonthAgg._sum.amount || 0;
+
+      // Daily: last 30 entries
+      const revenueDaily = dailyRevenueRaw.slice(-30).map(d => ({
+        label: d.date,
+        revenue: Number(d.revenue),
+      }));
+
+      // Weekly: group into week buckets (last 12 weeks)
+      const twelveWeeksAgo = new Date(startOfToday);
+      twelveWeeksAgo.setDate(twelveWeeksAgo.getDate() - 83); // 12 weeks = 84 days
+      const weeklyMap = new Map();
+      for (const d of dailyRevenueRaw) {
+        const date = new Date(d.raw_date);
+        if (date < twelveWeeksAgo) continue;
+        // Get Monday of the week
+        const day = date.getDay();
+        const monday = new Date(date);
+        monday.setDate(date.getDate() - ((day + 6) % 7));
+        const weekKey = monday.toISOString().slice(0, 10);
+        weeklyMap.set(weekKey, (weeklyMap.get(weekKey) || 0) + Number(d.revenue));
+      }
+      const revenueWeekly = Array.from(weeklyMap.entries())
+        .sort(([a], [b]) => a.localeCompare(b))
+        .slice(-12)
+        .map(([key, rev]) => {
+          const d = new Date(key);
+          return { label: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }), revenue: rev };
+        });
+
+      // Monthly: group by month
+      const monthlyMap = new Map();
+      for (const d of dailyRevenueRaw) {
+        const date = new Date(d.raw_date);
+        const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+        monthlyMap.set(monthKey, (monthlyMap.get(monthKey) || 0) + Number(d.revenue));
+      }
+      const revenueMonthly = Array.from(monthlyMap.entries())
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([key, rev]) => {
+          const [y, m] = key.split('-');
+          const d = new Date(Number(y), Number(m) - 1);
+          return { label: d.toLocaleDateString('en-US', { month: 'short' }), revenue: rev };
+        });
+
       return {
         stats: {
           totalPrograms,
@@ -263,17 +346,24 @@ router.get('/analytics', async (req, res, next) => {
           activeLearners: activeLearnersCount,
           todaySessions,
           overallCompletionRate,
+          totalRevenue,
         },
         trends: {
           programs: computeTrend(programsThisMonth, programsLastMonth),
           learners: computeTrend(learnersThisMonth, learnersLastMonth),
           activeLearners: computeTrend(activeLearnersCount, activeLearnersLastCount),
           todaySessions: computeTrend(todaySessions, yesterdaySessions),
+          revenue: computeTrend(revenueThisMonth, revenueLastMonth),
         },
         enrollmentChart: chartData,
         dailyActiveUsers,
         programPerformance,
         recentActivity,
+        revenueChart: {
+          daily: revenueDaily,
+          weekly: revenueWeekly,
+          monthly: revenueMonthly,
+        },
       };
     }, 180); // 3 min TTL
 

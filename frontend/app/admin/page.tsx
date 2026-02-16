@@ -1,8 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { BookOpen, Users, Calendar, Clock, Video, ArrowRight, Plus, UserPlus, Zap } from 'lucide-react';
-import { AdminHeader, StatsCard, EnrollmentChart, DailyActiveUsersChart, ProgramPerformance, RecentActivity } from '@/components/admin';
+import { BookOpen, Users, Calendar, Clock, Video, ArrowRight, Plus, UserPlus, Zap, IndianRupee } from 'lucide-react';
+import { AdminHeader, StatsCard, EnrollmentChart, DailyActiveUsersChart, ProgramPerformance, RecentActivity, RevenueChart } from '@/components/admin';
 import { Button } from '@/components/ui';
 import { useDashboardAnalytics, useTodaySessions } from '@/hooks';
 import { useAuthStore } from '@/lib/auth-store';
@@ -27,8 +27,8 @@ function DashboardSkeleton() {
       </div>
 
       {/* Stats skeleton */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 mb-8">
-        {[1, 2, 3, 4].map(i => (
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4 lg:gap-6 mb-8">
+        {[1, 2, 3, 4, 5].map(i => (
           <div key={i} className="bg-white rounded-xl border border-slate-200/80 p-5 shadow-soft">
             <div className="flex items-start justify-between mb-4">
               <div>
@@ -42,9 +42,9 @@ function DashboardSkeleton() {
         ))}
       </div>
 
-      {/* Charts skeleton */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 mb-8">
-        {[1, 2].map(i => (
+      {/* Row 2 skeleton: Sessions + Charts */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8 mb-8">
+        {[1, 2, 3].map(i => (
           <div key={i} className="bg-white rounded-xl border border-slate-200/80 shadow-soft overflow-hidden">
             <div className="px-6 py-4 border-b border-slate-100">
               <div className="h-5 w-36 bg-slate-100 rounded animate-pulse mb-1.5" />
@@ -128,7 +128,7 @@ export default function AdminDashboard() {
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4 lg:gap-6 mb-8">
           <StatsCard
             title="Total Programs"
             value={stats?.totalPrograms ?? 0}
@@ -168,84 +168,89 @@ export default function AdminDashboard() {
             href="/admin/sessions"
             animationDelay={225}
           />
+          <StatsCard
+            title="Revenue"
+            value={stats?.totalRevenue ?? 0}
+            prefix="₹"
+            icon={<IndianRupee className="w-5 h-5" />}
+            iconColor="teal"
+            trend={trends?.revenue}
+            trendLabel="vs last month"
+            animationDelay={300}
+          />
         </div>
 
-        {/* Row 2: Enrollment Chart + DAU Chart */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 mb-8">
-          <EnrollmentChart data={analytics?.enrollmentChart ?? []} />
-          <DailyActiveUsersChart data={analytics?.dailyActiveUsers ?? []} />
-        </div>
-
-        {/* Row 3: Today's Sessions + Program Performance + Recent Activity */}
+        {/* Row 2: Today's Sessions + Enrollment Chart + Revenue Chart */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8 mb-8">
-          {/* Today's Sessions */}
+          {/* Today's Sessions — compact card */}
           <div className="bg-white rounded-xl border border-slate-200/80 shadow-soft overflow-hidden animate-slide-up opacity-0 [animation-fill-mode:forwards] [animation-delay:100ms]">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+            <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-100">
               <div>
-                <h2 className="text-base font-semibold text-slate-900">Today&apos;s Sessions</h2>
-                <p className="text-xs text-slate-500 mt-0.5">Live classes and meetings</p>
+                <h2 className="text-sm font-semibold text-slate-900">Today&apos;s Sessions</h2>
+                <p className="text-xs text-slate-500 mt-0.5">Live classes &amp; meetings</p>
               </div>
               <Link href="/admin/sessions">
-                <Button variant="ghost" size="sm" rightIcon={<ArrowRight className="w-4 h-4" />}>
-                  View All
+                <Button variant="ghost" size="sm" rightIcon={<ArrowRight className="w-3.5 h-3.5" />}>
+                  All
                 </Button>
               </Link>
             </div>
 
-            <div className="p-4">
+            <div className="p-3">
               {todaySessions && todaySessions.length > 0 ? (
-                <div className="space-y-3">
-                  {todaySessions.slice(0, 3).map((session, index) => (
+                <div className="space-y-2">
+                  {todaySessions.slice(0, 4).map((session) => (
                     <div
                       key={session.id}
-                      className="flex items-center justify-between p-3.5 bg-slate-50/80 rounded-lg border border-slate-100 hover:bg-slate-50 transition-colors"
+                      className="flex items-center justify-between p-2.5 bg-slate-50/80 rounded-lg border border-slate-100 hover:bg-slate-50 transition-colors"
                     >
-                      <div className="flex items-center gap-3.5">
-                        <div className="w-10 h-10 bg-slate-900 rounded-lg flex items-center justify-center shadow-sm">
-                          <Video className="w-4 h-4 text-white" />
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="w-8 h-8 bg-slate-900 rounded-lg flex items-center justify-center shrink-0">
+                          <Video className="w-3.5 h-3.5 text-white" />
                         </div>
-                        <div>
-                          <p className="font-medium text-slate-900 text-sm">{session.name}</p>
-                          <p className="text-xs text-slate-500 flex items-center gap-1.5 mt-0.5">
-                            <Clock className="w-3 h-3" />
+                        <div className="min-w-0">
+                          <p className="font-medium text-slate-900 text-sm truncate">{session.name}</p>
+                          <p className="text-xs text-slate-500 flex items-center gap-1 mt-0.5">
+                            <Clock className="w-3 h-3 shrink-0" />
                             {format(new Date(session.startTime), 'h:mm a')}
                             {session.endTime && ` – ${format(new Date(session.endTime), 'h:mm a')}`}
                           </p>
                         </div>
                       </div>
                       {session.meetLink && (
-                        <a
-                          href={session.meetLink}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                        >
-                          <Button variant="primary" size="sm">
-                            Join
-                          </Button>
+                        <a href={session.meetLink} target="_blank" rel="noopener noreferrer" className="shrink-0 ml-2">
+                          <Button variant="primary" size="sm">Join</Button>
                         </a>
                       )}
                     </div>
                   ))}
-                  {todaySessions.length > 3 && (
+                  {todaySessions.length > 4 && (
                     <Link href="/admin/sessions" className="block">
-                      <div className="text-center py-2.5 text-sm font-medium text-slate-500 hover:text-accent-500 transition-colors">
-                        +{todaySessions.length - 3} more sessions
+                      <div className="text-center py-1.5 text-xs font-medium text-slate-500 hover:text-accent-500 transition-colors">
+                        +{todaySessions.length - 4} more
                       </div>
                     </Link>
                   )}
                 </div>
               ) : (
-                <div className="text-center py-12">
-                  <div className="w-14 h-14 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <Calendar className="w-6 h-6 text-slate-400" />
+                <div className="text-center py-10">
+                  <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                    <Calendar className="w-5 h-5 text-slate-400" />
                   </div>
-                  <p className="text-slate-600 font-medium mb-1">No sessions today</p>
-                  <p className="text-sm text-slate-400">Schedule a session to get started</p>
+                  <p className="text-slate-600 font-medium text-sm mb-0.5">No sessions today</p>
+                  <p className="text-xs text-slate-400">Schedule one to get started</p>
                 </div>
               )}
             </div>
           </div>
 
+          <EnrollmentChart data={analytics?.enrollmentChart ?? []} />
+          <RevenueChart data={analytics?.revenueChart ?? { daily: [], weekly: [], monthly: [] }} />
+        </div>
+
+        {/* Row 3: DAU + Program Performance + Recent Activity */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 items-start gap-6 lg:gap-8 mb-8">
+          <DailyActiveUsersChart data={analytics?.dailyActiveUsers ?? []} />
           <ProgramPerformance
             programs={analytics?.programPerformance ?? []}
             overallCompletionRate={stats?.overallCompletionRate ?? 0}

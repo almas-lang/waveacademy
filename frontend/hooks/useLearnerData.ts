@@ -161,6 +161,21 @@ export function useUpdateLessonProgress() {
   return { ...mutation, mutate: throttledMutate, flush };
 }
 
+// Self-enroll in a public course (creates FREE enrollment)
+export function useSelfEnroll() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (programId: string) => learnerApi.selfEnroll(programId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: learnerKeys.home() });
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.error?.message || 'Failed to enroll');
+    },
+  });
+}
+
 // Mark lesson as complete
 export function useCompleteLesson() {
   const queryClient = useQueryClient();

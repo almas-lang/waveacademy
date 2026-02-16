@@ -424,4 +424,9 @@ export const learnerApi = {
     const response = await api.get('/learner/discover');
     return response.data;
   },
+
+  selfEnroll: async (programId: string) => {
+    const response = await api.post(`/learner/enroll/${programId}`);
+    return response.data;
+  },
 };

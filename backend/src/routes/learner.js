@@ -21,7 +21,10 @@ router.get('/home', async (req, res, next) => {
     const data = await cacheGet(cacheKey, async () => {
       // Get enrollments with progress (only published programs)
       const enrollments = await req.prisma.enrollment.findMany({
-        where: { userId, program: { isPublished: true } },
+        where: {
+          userId,
+          program: { isPublished: true }
+        },
         include: {
           program: {
             include: {
@@ -285,6 +288,22 @@ router.get('/home', async (req, res, next) => {
         lastAccessedAt: p.lastAccessedAt
       }));
 
+      // Suggested courses: public published courses the learner is NOT enrolled in
+      const suggestedCourses = await req.prisma.program.findMany({
+        where: {
+          isPublished: true,
+          isPublic: true,
+          ...(enrolledProgramIds.length > 0 ? { id: { notIn: enrolledProgramIds } } : {})
+        },
+        select: {
+          id: true, name: true, description: true, thumbnailUrl: true,
+          slug: true, price: true, currency: true,
+          _count: { select: { lessons: true } }
+        },
+        take: 3,
+        orderBy: { createdAt: 'desc' }
+      });
+
       return {
         user: { name: req.user.name },
         enrolledPrograms,
@@ -303,6 +322,12 @@ router.get('/home', async (req, res, next) => {
           name: s.name,
           startTime: s.startTime,
           meetLink: canJoinSessions ? s.meetLink : null
+        })),
+        suggestedCourses: suggestedCourses.map(p => ({
+          id: p.id, name: p.name, description: p.description,
+          thumbnailUrl: p.thumbnailUrl, slug: p.slug,
+          price: p.price, currency: p.currency,
+          lessonCount: p._count.lessons
         }))
       };
     }, 120); // 2 minutes (shorter TTL since it includes progress)
@@ -788,6 +813,40 @@ router.post('/lessons/:id/complete', async (req, res, next) => {
         nextLessonId: nextLesson?.id
       }
     });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * POST /learner/enroll/:programId
+ * Self-enroll in a public course (creates FREE enrollment)
+ */
+router.post('/enroll/:programId', async (req, res, next) => {
+  try {
+    const { programId } = req.params;
+    const userId = req.user.id;
+
+    const program = await req.prisma.program.findUnique({ where: { id: programId } });
+
+    if (!program || !program.isPublished || !program.isPublic) {
+      return res.status(404).json({
+        success: false,
+        error: { code: 'NOT_FOUND', message: 'Program not found' }
+      });
+    }
+
+    // Upsert to handle duplicate enrollment gracefully
+    await req.prisma.enrollment.upsert({
+      where: { userId_programId: { userId, programId } },
+      update: {},
+      create: { userId, programId, type: 'FREE' }
+    });
+
+    // Bust home cache
+    await cacheDel(`learner:home:${userId}`);
+
+    res.json({ success: true });
   } catch (error) {
     next(error);
   }

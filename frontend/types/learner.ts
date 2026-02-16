@@ -25,6 +25,7 @@ export interface LearnerHome {
   canJoinSessions: boolean;
   upcomingSessions: UpcomingSession[];
   recentProgress: RecentLessonProgress[];
+  suggestedCourses?: DiscoverProgram[];
 }
 
 export interface EnrolledProgram {

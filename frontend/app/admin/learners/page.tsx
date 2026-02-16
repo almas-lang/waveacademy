@@ -156,6 +156,10 @@ export default function LearnersPage() {
     },
   ];
 
+  const allLearners = data?.learners || [];
+  const privateLearners = allLearners.filter(l => l.learnerType !== 'public');
+  const publicLearners = allLearners.filter(l => l.learnerType === 'public');
+
   const hasFilters = filters.search || filters.status || filters.programId;
 
   return (
@@ -171,7 +175,10 @@ export default function LearnersPage() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
           <div>
             <p className="text-slate-500 text-sm">
-              {data?.pagination.total || 0} learners total
+              {privateLearners.length} learner{privateLearners.length !== 1 ? 's' : ''}
+              {publicLearners.length > 0 && (
+                <span> &middot; {publicLearners.length} short course learner{publicLearners.length !== 1 ? 's' : ''}</span>
+              )}
             </p>
           </div>
           <Button
@@ -239,48 +246,86 @@ export default function LearnersPage() {
           </div>
         </div>
 
-        {/* Learners Table */}
-        <div className="bg-white rounded-xl border border-slate-200/80 shadow-soft overflow-hidden">
-          {isLoading ? (
+        {isLoading ? (
+          <div className="bg-white rounded-xl border border-slate-200/80 shadow-soft overflow-hidden">
             <PageLoading />
-          ) : (
-            <>
-              <Table
-                columns={columns}
-                data={data?.learners || []}
-                rowKey={(learner) => learner.id}
-                onRowClick={(learner) => {
-                  window.location.href = `/admin/learners/${learner.id}`;
-                }}
-                emptyState={{
-                  title: 'No learners found',
-                  description: hasFilters
-                    ? 'Try adjusting your filters'
-                    : 'Add your first learner to get started',
-                  action: hasFilters
-                    ? { label: 'Clear Filters', onClick: clearFilters }
-                    : { label: 'Add Learner', onClick: () => setShowModal(true) },
-                }}
-              />
-
-              {/* Pagination */}
-              {data?.pagination && data.pagination.totalPages > 1 && (
-                <div className="flex items-center justify-between px-5 py-4 border-t border-slate-100">
-                  <p className="text-sm text-slate-500">
-                    Showing {((data.pagination.page - 1) * data.pagination.limit) + 1} to{' '}
-                    {Math.min(data.pagination.page * data.pagination.limit, data.pagination.total)} of{' '}
-                    {data.pagination.total} learners
-                  </p>
-                  <Pagination
-                    currentPage={data.pagination.page}
-                    totalPages={data.pagination.totalPages}
-                    onPageChange={(page) => setFilters(prev => ({ ...prev, page }))}
+          </div>
+        ) : allLearners.length === 0 ? (
+          <div className="bg-white rounded-xl border border-slate-200/80 shadow-soft overflow-hidden">
+            <Table
+              columns={columns}
+              data={[]}
+              rowKey={(learner) => learner.id}
+              emptyState={{
+                title: 'No learners found',
+                description: hasFilters
+                  ? 'Try adjusting your filters'
+                  : 'Add your first learner to get started',
+                action: hasFilters
+                  ? { label: 'Clear Filters', onClick: clearFilters }
+                  : { label: 'Add Learner', onClick: () => setShowModal(true) },
+              }}
+            />
+          </div>
+        ) : (
+          <div className="space-y-6">
+            {/* Learners (Private Programs) */}
+            {privateLearners.length > 0 && (
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <h2 className="text-sm font-semibold text-slate-900">Learners</h2>
+                  <span className="text-xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">{privateLearners.length}</span>
+                </div>
+                <div className="bg-white rounded-xl border border-slate-200/80 shadow-soft overflow-hidden">
+                  <Table
+                    columns={columns}
+                    data={privateLearners}
+                    rowKey={(learner) => learner.id}
+                    onRowClick={(learner) => {
+                      window.location.href = `/admin/learners/${learner.id}`;
+                    }}
                   />
                 </div>
-              )}
-            </>
-          )}
-        </div>
+              </div>
+            )}
+
+            {/* Short Course Learners (Public Programs Only) */}
+            {publicLearners.length > 0 && (
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <h2 className="text-sm font-semibold text-slate-900">Short Course Learners</h2>
+                  <span className="text-xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">{publicLearners.length}</span>
+                </div>
+                <div className="bg-white rounded-xl border border-slate-200/80 shadow-soft overflow-hidden">
+                  <Table
+                    columns={columns}
+                    data={publicLearners}
+                    rowKey={(learner) => learner.id}
+                    onRowClick={(learner) => {
+                      window.location.href = `/admin/learners/${learner.id}`;
+                    }}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Pagination */}
+        {data?.pagination && data.pagination.totalPages > 1 && (
+          <div className="flex items-center justify-between px-5 py-4 mt-4 bg-white rounded-xl border border-slate-200/80 shadow-soft">
+            <p className="text-sm text-slate-500">
+              Showing {((data.pagination.page - 1) * data.pagination.limit) + 1} to{' '}
+              {Math.min(data.pagination.page * data.pagination.limit, data.pagination.total)} of{' '}
+              {data.pagination.total} learners
+            </p>
+            <Pagination
+              currentPage={data.pagination.page}
+              totalPages={data.pagination.totalPages}
+              onPageChange={(page) => setFilters(prev => ({ ...prev, page }))}
+            />
+          </div>
+        )}
       </div>
 
       {/* Add Learner Modal */}

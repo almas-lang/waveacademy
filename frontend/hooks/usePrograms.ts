@@ -67,7 +67,7 @@ export function useCreateProgram() {
   return useMutation({
     mutationFn: (data: CreateProgramData) => adminApi.createProgram(data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: programKeys.list() });
+      queryClient.invalidateQueries({ queryKey: programKeys.all });
       toast.success('Program created successfully');
     },
     onError: (error: any) => {
@@ -84,8 +84,7 @@ export function useUpdateProgram() {
     mutationFn: ({ id, data }: { id: string; data: Partial<CreateProgramData> }) =>
       adminApi.updateProgram(id, data),
     onSuccess: (_, { id }) => {
-      queryClient.invalidateQueries({ queryKey: programKeys.list() });
-      queryClient.invalidateQueries({ queryKey: programKeys.detail(id) });
+      queryClient.invalidateQueries({ queryKey: programKeys.all });
       toast.success('Program updated successfully');
     },
     onError: (error: any) => {
@@ -101,7 +100,7 @@ export function useDeleteProgram() {
   return useMutation({
     mutationFn: (id: string) => adminApi.deleteProgram(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: programKeys.list() });
+      queryClient.invalidateQueries({ queryKey: programKeys.all });
       toast.success('Program deleted successfully');
     },
     onError: (error: any) => {
@@ -117,9 +116,8 @@ export function useTogglePublish() {
   return useMutation({
     mutationFn: ({ id, isPublished }: { id: string; isPublished: boolean }) =>
       adminApi.togglePublish(id, isPublished),
-    onSuccess: (_, { id }) => {
-      queryClient.invalidateQueries({ queryKey: programKeys.list() });
-      queryClient.invalidateQueries({ queryKey: programKeys.detail(id) });
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: programKeys.all });
       toast.success('Program status updated');
     },
     onError: (error: any) => {

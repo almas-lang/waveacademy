@@ -17,6 +17,7 @@ export interface Learner {
   status: UserStatus;
   registrationNumber?: string;
   enrolledPrograms: string[];
+  learnerType?: 'private' | 'public';
   createdAt: string;
 }
 
@@ -201,6 +202,7 @@ export interface DashboardStats {
   activeLearners: number;
   todaySessions: number;
   overallCompletionRate: number;
+  totalRevenue: number;
 }
 
 export interface DashboardTrends {
@@ -208,6 +210,7 @@ export interface DashboardTrends {
   learners: DashboardTrend;
   activeLearners: DashboardTrend;
   todaySessions: DashboardTrend;
+  revenue: DashboardTrend;
 }
 
 export interface EnrollmentChartPoint {
@@ -233,6 +236,19 @@ export interface ActivityItem {
   timestamp: string;
 }
 
+export type RevenueGranularity = 'daily' | 'weekly' | 'monthly';
+
+export interface RevenueChartPoint {
+  label: string;
+  revenue: number;
+}
+
+export interface RevenueChartData {
+  daily: RevenueChartPoint[];
+  weekly: RevenueChartPoint[];
+  monthly: RevenueChartPoint[];
+}
+
 export interface DashboardAnalytics {
   stats: DashboardStats;
   trends: DashboardTrends;
@@ -240,6 +256,7 @@ export interface DashboardAnalytics {
   dailyActiveUsers: DailyActiveUsersPoint[];
   programPerformance: ProgramPerformanceItem[];
   recentActivity: ActivityItem[];
+  revenueChart: RevenueChartData;
 }
 
 // Filter types

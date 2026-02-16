@@ -148,20 +148,10 @@ router.post('/register', async (req, res, next) => {
         }
       });
 
-      // Auto-enroll in published public courses as FREE
-      const publishedPrograms = await tx.program.findMany({
-        where: { isPublished: true, isPublic: true },
-        select: { id: true }
-      });
-
-      if (publishedPrograms.length > 0) {
-        await tx.enrollment.createMany({
-          data: publishedPrograms.map(p => ({
-            userId: newUser.id,
-            programId: p.id,
-            type: 'FREE'
-          })),
-          skipDuplicates: true
+      // Enroll in the specific course from the LP link
+      if (program) {
+        await tx.enrollment.create({
+          data: { userId: newUser.id, programId: program.id, type: 'FREE' }
         });
       }
 

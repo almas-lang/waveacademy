@@ -8,6 +8,7 @@ import clsx from 'clsx';
 interface StatsCardProps {
   title: string;
   value: string | number;
+  prefix?: string;
   icon: ReactNode;
   iconColor?: 'teal' | 'coral' | 'blue' | 'purple' | 'slate';
   trend?: {
@@ -58,6 +59,7 @@ const iconColorClasses = {
 export default function StatsCard({
   title,
   value,
+  prefix,
   icon,
   iconColor = 'slate',
   trend,
@@ -78,7 +80,7 @@ export default function StatsCard({
           <div>
             <p className="text-sm font-medium text-slate-500 mb-1">{title}</p>
             <p className="text-3xl font-bold text-slate-900 tracking-tight">
-              {typeof value === 'number' ? <AnimatedNumber value={value} /> : value}
+              {prefix}{typeof value === 'number' ? <AnimatedNumber value={value} /> : value}
             </p>
           </div>
           <div

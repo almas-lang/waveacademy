@@ -15,7 +15,7 @@ export default function DailyActiveUsersChart({ data }: DailyActiveUsersChartPro
         <p className="text-xs text-slate-500 mt-0.5">Unique learners active per day (last 30 days)</p>
       </div>
       <div className="p-4 pr-6">
-        <ResponsiveContainer width="100%" height={240}>
+        <ResponsiveContainer width="100%" height={180}>
           <AreaChart data={data} margin={{ top: 8, right: 4, left: -16, bottom: 0 }}>
             <defs>
               <linearGradient id="dauGradient" x1="0" y1="0" x2="0" y2="1">

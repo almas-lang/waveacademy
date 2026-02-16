@@ -11,3 +11,4 @@ export { default as EnrollmentChart } from './EnrollmentChart';
 export { default as DailyActiveUsersChart } from './DailyActiveUsersChart';
 export { default as ProgramPerformance } from './ProgramPerformance';
 export { default as RecentActivity } from './RecentActivity';
+export { default as RevenueChart } from './RevenueChart';

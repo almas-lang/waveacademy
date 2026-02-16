@@ -7,7 +7,8 @@ import { BookOpen, Calendar, Clock, Play, ArrowRight, CheckCircle, Sparkles, Fla
 import { LearnerHeader } from '@/components/learner';
 import { useSidebar } from '@/lib/sidebar-context';
 import { Button, Badge } from '@/components/ui';
-import { useLearnerHome } from '@/hooks/useLearnerData';
+import { useLearnerHome, useSelfEnroll } from '@/hooks/useLearnerData';
+import { DiscoverProgram } from '@/types/learner';
 import { format } from 'date-fns';
 
 function getGreeting(): string {
@@ -155,6 +156,7 @@ export default function LearnerHomePage() {
   const { openSidebar } = useSidebar();
   const router = useRouter();
   const { data, isLoading } = useLearnerHome();
+  const selfEnroll = useSelfEnroll();
 
   if (isLoading) {
     return (
@@ -292,9 +294,6 @@ export default function LearnerHomePage() {
           <div className="flex items-center justify-between mb-5">
             <div>
               <h3 className="text-lg font-semibold text-slate-900">My Programs</h3>
-              {hasPrograms && (
-                <p className="text-sm text-slate-500">Your enrolled courses</p>
-              )}
             </div>
             {hasPrograms && (
               <Link href="/learner/programs">
@@ -551,6 +550,72 @@ export default function LearnerHomePage() {
             </div>
           )}
         </div>
+
+        {/* Courses You Might Like */}
+        {data?.suggestedCourses && data.suggestedCourses.length > 0 && (
+          <div className="mb-8 animate-slide-up opacity-0 [animation-fill-mode:forwards] [animation-delay:150ms]">
+            <h3 className="text-lg font-semibold text-slate-900 mb-5">Courses You Might Like</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+              {data.suggestedCourses.map((course: DiscoverProgram, index: number) => (
+                <button
+                  key={course.id}
+                  type="button"
+                  disabled={selfEnroll.isPending}
+                  onClick={async () => {
+                    try {
+                      await selfEnroll.mutateAsync(course.id);
+                      router.push(`/learner/programs/${course.id}`);
+                    } catch {
+                      // error handled by mutation onError
+                    }
+                  }}
+                  className="group bg-white rounded-xl border border-slate-200/80 shadow-soft overflow-hidden hover:shadow-elevated hover:border-slate-300 transition-all duration-200 text-left animate-slide-up opacity-0 [animation-fill-mode:forwards]"
+                  style={{ animationDelay: `${200 + index * 75}ms` }}
+                >
+                  {/* Thumbnail */}
+                  <div className="relative">
+                    {course.thumbnailUrl ? (
+                      <Image
+                        src={course.thumbnailUrl}
+                        alt={course.name}
+                        width={400}
+                        height={144}
+                        className="w-full h-36 object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-36 bg-gradient-to-br from-slate-100 to-slate-50 flex items-center justify-center">
+                        <BookOpen className="w-12 h-12 text-slate-300" />
+                      </div>
+                    )}
+                    {course.price && Number(course.price) > 0 && (
+                      <div className="absolute top-3 right-3">
+                        <Badge variant="info" size="sm">
+                          {course.currency === 'INR' ? '\u20B9' : '$'}{Number(course.price).toLocaleString()}
+                        </Badge>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Content */}
+                  <div className="p-5">
+                    <h4 className="font-semibold text-slate-900 mb-1 group-hover:text-accent-600 transition-colors">
+                      {course.name}
+                    </h4>
+                    {course.description && (
+                      <p className="text-sm text-slate-500 line-clamp-2 mb-3">{course.description}</p>
+                    )}
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-slate-400">{course.lessonCount} lesson{course.lessonCount !== 1 ? 's' : ''}</span>
+                      <span className="text-sm font-medium text-accent-600 group-hover:text-accent-700 flex items-center gap-1">
+                        View Course <ArrowRight className="w-3.5 h-3.5" />
+                      </span>
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Upcoming Sessions */}

@@ -44,7 +44,7 @@ router.get('/', async (req, res, next) => {
         include: {
           enrollments: {
             include: {
-              program: { select: { name: true } }
+              program: { select: { name: true, isPublic: true } }
             }
           }
         },
@@ -55,16 +55,20 @@ router.get('/', async (req, res, next) => {
       req.prisma.user.count({ where })
     ]);
 
-    const formattedLearners = learners.map(learner => ({
-      id: learner.id,
-      name: learner.name,
-      email: learner.email,
-      mobile: learner.mobile,
-      status: learner.status,
-      registrationNumber: learner.registrationNumber,
-      enrolledPrograms: learner.enrollments.map(e => e.program.name),
-      createdAt: learner.createdAt
-    }));
+    const formattedLearners = learners.map(learner => {
+      const hasPrivateProgram = learner.enrollments.some(e => !e.program.isPublic);
+      return {
+        id: learner.id,
+        name: learner.name,
+        email: learner.email,
+        mobile: learner.mobile,
+        status: learner.status,
+        registrationNumber: learner.registrationNumber,
+        enrolledPrograms: learner.enrollments.map(e => e.program.name),
+        learnerType: hasPrivateProgram ? 'private' : 'public',
+        createdAt: learner.createdAt
+      };
+    });
 
     res.json({
       success: true,

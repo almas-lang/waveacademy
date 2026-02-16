@@ -395,25 +395,6 @@ router.post('/:id/publish', async (req, res, next) => {
       data: { isPublished }
     });
 
-    // Auto-enroll all learners as FREE when publishing a public course
-    if (isPublished && program.isPublic) {
-      const learners = await req.prisma.user.findMany({
-        where: { role: 'LEARNER', status: 'ACTIVE' },
-        select: { id: true }
-      });
-
-      if (learners.length > 0) {
-        await req.prisma.enrollment.createMany({
-          data: learners.map(u => ({
-            userId: u.id,
-            programId: id,
-            type: 'FREE'
-          })),
-          skipDuplicates: true
-        });
-      }
-    }
-
     clearProgramsCache();
 
     res.json({
