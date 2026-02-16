@@ -73,7 +73,12 @@ export default function Table<T>({
           {data.map((item, index) => (
             <tr
               key={rowKey(item)}
-              onClick={() => onRowClick?.(item)}
+              onClick={(e) => {
+                // Skip row click if user clicked an interactive element (button, link, etc.)
+                const target = e.target as HTMLElement;
+                if (target.closest('button, a, [role="menu"], [role="menuitem"]')) return;
+                onRowClick?.(item);
+              }}
               className={clsx(
                 'transition-colors duration-100',
                 onRowClick && 'cursor-pointer hover:bg-slate-50/80'

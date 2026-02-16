@@ -290,6 +290,11 @@ export const adminApi = {
     return response.data;
   },
 
+  deleteLearner: async (id: string) => {
+    const response = await api.delete(`/admin/learners/${id}`);
+    return response.data;
+  },
+
   // User Sessions (login sessions)
   getLearnerSessions: async (learnerId: string) => {
     const response = await api.get(`/admin/learners/${learnerId}/sessions`);
@@ -420,8 +425,8 @@ export const learnerApi = {
     return response.data;
   },
 
-  getDiscover: async () => {
-    const response = await api.get('/learner/discover');
+  getDiscover: async (params?: { page?: number; limit?: number; search?: string }) => {
+    const response = await api.get('/learner/discover', { params });
     return response.data;
   },
 

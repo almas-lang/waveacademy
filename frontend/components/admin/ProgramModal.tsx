@@ -20,8 +20,9 @@ export default function ProgramModal({ isOpen, onClose, program }: ProgramModalP
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [thumbnailUrl, setThumbnailUrl] = useState('');
-  const [price, setPrice] = useState('');
+  const [price, setPrice] = useState('0');
   const [slug, setSlug] = useState('');
+  const [slugManuallyEdited, setSlugManuallyEdited] = useState(false);
   const [isPublic, setIsPublic] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -36,15 +37,17 @@ export default function ProgramModal({ isOpen, onClose, program }: ProgramModalP
       setName(program.name);
       setDescription(program.description || '');
       setThumbnailUrl(program.thumbnailUrl || '');
-      setPrice(program.price != null ? String(program.price) : '');
+      setPrice(program.price != null ? String(program.price) : '0');
       setSlug(program.slug || '');
+      setSlugManuallyEdited(true);
       setIsPublic(program.isPublic || false);
     } else {
       setName('');
       setDescription('');
       setThumbnailUrl('');
-      setPrice('');
+      setPrice('0');
       setSlug('');
+      setSlugManuallyEdited(false);
       setIsPublic(false);
     }
     setErrors({});
@@ -104,7 +107,7 @@ export default function ProgramModal({ isOpen, onClose, program }: ProgramModalP
       name: name.trim(),
       description: description.trim() || undefined,
       thumbnailUrl: thumbnailUrl || null,
-      price: price ? parseFloat(price) : null,
+      price: price !== '' ? parseFloat(price) : 0,
       slug: slug.trim() || undefined,
       isPublic,
     };
@@ -199,7 +202,13 @@ export default function ProgramModal({ isOpen, onClose, program }: ProgramModalP
           <Input
             label="Program Name"
             value={name}
-            onChange={(e) => setName(e.target.value)}
+            onChange={(e) => {
+              const newName = e.target.value;
+              setName(newName);
+              if (!slugManuallyEdited) {
+                setSlug(newName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''));
+              }
+            }}
             placeholder="e.g., Mindfulness Fundamentals"
             error={errors.name}
             required
@@ -222,7 +231,7 @@ export default function ProgramModal({ isOpen, onClose, program }: ProgramModalP
           {/* Price */}
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">
-              Price <span className="text-slate-400 font-normal">(optional, INR)</span>
+              Price <span className="text-slate-400 font-normal">(INR)</span>
             </label>
             <div className="relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-medium">&#8377;</span>
@@ -230,25 +239,28 @@ export default function ProgramModal({ isOpen, onClose, program }: ProgramModalP
                 type="number"
                 value={price}
                 onChange={(e) => setPrice(e.target.value)}
-                placeholder="e.g., 499"
+                placeholder="0"
                 className="input pl-8"
                 min="0"
                 step="0.01"
               />
             </div>
-            <p className="text-xs text-slate-500 mt-1">Leave blank for free programs. Set a price to enable paid upgrades.</p>
+            <p className="text-xs text-slate-500 mt-1">Set to 0 for free programs. Set a price to enable paid enrollment.</p>
           </div>
 
           {/* Slug */}
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">
-              URL Slug <span className="text-slate-400 font-normal">(for registration link)</span>
+              URL Slug <span className="text-slate-400 font-normal">(auto-generated, editable)</span>
             </label>
             <input
               type="text"
               value={slug}
-              onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-'))}
-              placeholder={name ? name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') : 'e.g., mindfulness-101'}
+              onChange={(e) => {
+                setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-'));
+                setSlugManuallyEdited(true);
+              }}
+              placeholder="e.g., mindfulness-101"
               className="input"
             />
             {slug && (
@@ -280,7 +292,7 @@ export default function ProgramModal({ isOpen, onClose, program }: ProgramModalP
                 </div>
                 <div className="text-left">
                   <p className={`text-sm font-medium ${!isPublic ? 'text-primary-700' : 'text-slate-700'}`}>Private</p>
-                  <p className="text-xs text-slate-500">Admin-enrolled only</p>
+                  <p className="text-xs text-slate-500">Admin-enrolled only, not listed in discover</p>
                 </div>
               </button>
               <button
@@ -299,7 +311,7 @@ export default function ProgramModal({ isOpen, onClose, program }: ProgramModalP
                 </div>
                 <div className="text-left">
                   <p className={`text-sm font-medium ${isPublic ? 'text-emerald-700' : 'text-slate-700'}`}>Public</p>
-                  <p className="text-xs text-slate-500">Visible to all registered learners</p>
+                  <p className="text-xs text-slate-500">Discoverable to all learners</p>
                 </div>
               </button>
             </div>

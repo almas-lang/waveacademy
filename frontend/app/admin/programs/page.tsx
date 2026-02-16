@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import { Plus, BookOpen, Eye, Edit, Trash2, Globe, Lock } from 'lucide-react';
 import { AdminHeader } from '@/components/admin';
@@ -14,8 +14,16 @@ import { format } from 'date-fns';
 
 export default function ProgramsPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { openSidebar } = useSidebar();
   const [showModal, setShowModal] = useState(false);
+
+  useEffect(() => {
+    if (searchParams.get('action') === 'create') {
+      setShowModal(true);
+      router.replace('/admin/programs', { scroll: false });
+    }
+  }, [searchParams, router]);
   const [editingProgram, setEditingProgram] = useState<Program | null>(null);
   const [deletingProgram, setDeletingProgram] = useState<Program | null>(null);
   const [page, setPage] = useState(1);
@@ -100,6 +108,20 @@ export default function ProgramsPage() {
       header: 'Lessons',
       render: (program: Program) => (
         <span className="text-slate-600 font-medium">{program.lessonCount}</span>
+      ),
+    },
+    {
+      key: 'type',
+      header: 'Type',
+      render: (program: Program) => (
+        <div className="flex flex-wrap gap-1.5">
+          <Badge variant={program.isPublic ? 'info' : 'neutral'} size="sm">
+            {program.isPublic ? 'Public' : 'Private'}
+          </Badge>
+          <Badge variant={program.price && program.price > 0 ? 'warning' : 'success'} size="sm">
+            {program.price && program.price > 0 ? `₹${program.price}` : 'Free'}
+          </Badge>
+        </div>
       ),
     },
     {
@@ -207,43 +229,20 @@ export default function ProgramsPage() {
           </div>
         ) : (
           <>
-            {/* Programs (private) */}
-            {(programs || []).filter(p => !p.isPublic).length > 0 && (
-              <div className="mb-6">
-                <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-3">Programs</h3>
-                <div className="bg-white rounded-xl border border-slate-200/80 shadow-soft overflow-hidden">
-                  <Table
-                    columns={columns}
-                    data={(programs || []).filter(p => !p.isPublic)}
-                    rowKey={(program) => program.id}
-                    onRowClick={(program) => {
-                      router.push(`/admin/programs/${program.id}`);
-                    }}
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* Short Courses (public) */}
-            {(programs || []).filter(p => p.isPublic).length > 0 && (
-              <div className="mb-6">
-                <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-3">Short Courses</h3>
-                <div className="bg-white rounded-xl border border-slate-200/80 shadow-soft overflow-hidden">
-                  <Table
-                    columns={columns}
-                    data={(programs || []).filter(p => p.isPublic)}
-                    rowKey={(program) => program.id}
-                    onRowClick={(program) => {
-                      router.push(`/admin/programs/${program.id}`);
-                    }}
-                  />
-                </div>
-              </div>
-            )}
+            <div className="bg-white rounded-xl border border-slate-200/80 shadow-soft overflow-hidden">
+              <Table
+                columns={columns}
+                data={programs || []}
+                rowKey={(program) => program.id}
+                onRowClick={(program) => {
+                  router.push(`/admin/programs/${program.id}`);
+                }}
+              />
+            </div>
 
             {/* Pagination */}
             {pagination && pagination.totalPages > 1 && (
-              <div className="flex items-center justify-between px-5 py-4">
+              <div className="flex items-center justify-between px-5 py-4 mt-4 bg-white rounded-xl border border-slate-200/80 shadow-soft">
                 <p className="text-sm text-slate-500">
                   Showing {((pagination.page - 1) * pagination.limit) + 1} to{' '}
                   {Math.min(pagination.page * pagination.limit, pagination.total)} of{' '}

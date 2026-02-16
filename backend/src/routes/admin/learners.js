@@ -441,6 +441,37 @@ router.post('/:id/unenroll', async (req, res, next) => {
 });
 
 /**
+ * DELETE /admin/learners/:id
+ * Permanently delete a learner and all associated data
+ */
+router.delete('/:id', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    const learner = await req.prisma.user.findUnique({
+      where: { id },
+      select: { id: true, role: true, name: true }
+    });
+
+    if (!learner || learner.role !== 'LEARNER') {
+      return res.status(404).json({
+        success: false,
+        error: { code: 'NOT_FOUND', message: 'Learner not found' }
+      });
+    }
+
+    await req.prisma.user.delete({ where: { id } });
+
+    res.json({
+      success: true,
+      message: `Learner "${learner.name}" has been permanently deleted`
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
  * GET /admin/learners/:id/sessions
  * Get active sessions for a learner
  */

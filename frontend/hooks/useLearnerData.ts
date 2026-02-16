@@ -23,7 +23,7 @@ export const learnerKeys = {
   sessionsCalendar: (month: number, year: number) =>
     [...learnerKeys.all, 'sessions', 'calendar', month, year] as const,
   profile: () => [...learnerKeys.all, 'profile'] as const,
-  discover: () => [...learnerKeys.all, 'discover'] as const,
+  discover: (params?: Record<string, any>) => [...learnerKeys.all, 'discover', params] as const,
 };
 
 // Fetch learner home/dashboard data
@@ -95,12 +95,15 @@ export function useLearnerProfile() {
 }
 
 // Fetch programs the learner is NOT enrolled in
-export function useLearnerDiscover() {
+export function useLearnerDiscover(params: { page?: number; limit?: number; search?: string } = {}) {
   return useQuery({
-    queryKey: learnerKeys.discover(),
+    queryKey: learnerKeys.discover(params),
     queryFn: async () => {
-      const response = await learnerApi.getDiscover();
-      return response.data.programs as DiscoverProgram[];
+      const response = await learnerApi.getDiscover(params);
+      return {
+        programs: response.data.programs as DiscoverProgram[],
+        pagination: response.data.pagination as { total: number; page: number; limit: number; totalPages: number },
+      };
     },
   });
 }

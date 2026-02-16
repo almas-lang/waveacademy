@@ -108,10 +108,24 @@ function createApp(prisma) {
       legacyHeaders: false,
       validate: { ip: false },
     });
-    // Apply register limiter specifically to /auth/register, general auth limiter to rest
+    const passwordSetupLimiter = rateLimit({
+      windowMs: 15 * 60 * 1000,
+      max: 30,
+      message: {
+        success: false,
+        error: {
+          code: 'TOO_MANY_REQUESTS',
+          message: 'Too many attempts. Please try again in 15 minutes.'
+        }
+      },
+      standardHeaders: true,
+      legacyHeaders: false,
+      validate: { ip: false },
+    });
+    // Apply specific limiters: strict for login/register, relaxed for password setup/reset
     app.use('/auth/register', registerLimiter);
-    app.use('/auth/setup-password', authLimiter);
-    app.use('/auth/reset-password', authLimiter);
+    app.use('/auth/setup-password', passwordSetupLimiter);
+    app.use('/auth/reset-password', passwordSetupLimiter);
     app.use('/auth', authLimiter, authRoutes);
   } else {
     app.use('/auth', authRoutes);

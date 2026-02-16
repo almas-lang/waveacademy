@@ -13,6 +13,14 @@ async function clearProgramsCache() {
   ]);
 }
 
+// Touch program's updatedAt so "hasUnpublishedChanges" detects content changes
+async function touchProgram(prisma, programId) {
+  await prisma.program.update({
+    where: { id: programId },
+    data: { updatedAt: new Date() }
+  });
+}
+
 // Apply auth to all routes
 router.use(authenticate);
 router.use(requireAdmin);
@@ -306,7 +314,12 @@ router.get('/:id', async (req, res, next) => {
           isPublic: program.isPublic,
           slug: program.slug,
           price: program.price,
-          currency: program.currency
+          currency: program.currency,
+          publishedAt: program.publishedAt,
+          updatedAt: program.updatedAt,
+          hasUnpublishedChanges: program.isPublished && program.publishedAt
+            ? program.updatedAt > program.publishedAt
+            : false
         },
         content
       }
@@ -392,7 +405,10 @@ router.post('/:id/publish', async (req, res, next) => {
 
     const program = await req.prisma.program.update({
       where: { id },
-      data: { isPublished }
+      data: {
+        isPublished,
+        ...(isPublished ? { publishedAt: new Date() } : {})
+      }
     });
 
     clearProgramsCache();
@@ -471,6 +487,8 @@ router.post('/topics', async (req, res, next) => {
       data: { programId, name, orderIndex }
     });
 
+    await touchProgram(req.prisma, programId);
+
     res.status(201).json({
       success: true,
       data: { topic }
@@ -493,6 +511,8 @@ router.put('/topics/:id', async (req, res, next) => {
       data: { name, orderIndex }
     });
 
+    await touchProgram(req.prisma, topic.programId);
+
     res.json({ success: true, data: { topic } });
   } catch (error) {
     next(error);
@@ -505,7 +525,9 @@ router.put('/topics/:id', async (req, res, next) => {
 router.delete('/topics/:id', async (req, res, next) => {
   try {
     const { id } = req.params;
+    const topic = await req.prisma.topic.findUnique({ where: { id }, select: { programId: true } });
     await req.prisma.topic.delete({ where: { id } });
+    if (topic) await touchProgram(req.prisma, topic.programId);
     res.json({ success: true, message: 'Topic deleted' });
   } catch (error) {
     next(error);
@@ -520,8 +542,10 @@ router.post('/subtopics', async (req, res, next) => {
   try {
     const { topicId, name, orderIndex = 0 } = req.body;
     const subtopic = await req.prisma.subtopic.create({
-      data: { topicId, name, orderIndex }
+      data: { topicId, name, orderIndex },
+      include: { topic: { select: { programId: true } } }
     });
+    await touchProgram(req.prisma, subtopic.topic.programId);
     res.status(201).json({ success: true, data: { subtopic } });
   } catch (error) {
     next(error);
@@ -534,8 +558,10 @@ router.put('/subtopics/:id', async (req, res, next) => {
     const { name, orderIndex } = req.body;
     const subtopic = await req.prisma.subtopic.update({
       where: { id },
-      data: { name, orderIndex }
+      data: { name, orderIndex },
+      include: { topic: { select: { programId: true } } }
     });
+    await touchProgram(req.prisma, subtopic.topic.programId);
     res.json({ success: true, data: { subtopic } });
   } catch (error) {
     next(error);
@@ -545,7 +571,9 @@ router.put('/subtopics/:id', async (req, res, next) => {
 router.delete('/subtopics/:id', async (req, res, next) => {
   try {
     const { id } = req.params;
+    const subtopic = await req.prisma.subtopic.findUnique({ where: { id }, include: { topic: { select: { programId: true } } } });
     await req.prisma.subtopic.delete({ where: { id } });
+    if (subtopic) await touchProgram(req.prisma, subtopic.topic.programId);
     res.json({ success: true, message: 'Subtopic deleted' });
   } catch (error) {
     next(error);
@@ -610,6 +638,7 @@ router.post('/lessons', async (req, res, next) => {
       }
     })();
 
+    await touchProgram(req.prisma, programId);
     clearProgramsCache();
 
     res.status(201).json({ success: true, data: { lesson } });
@@ -631,6 +660,7 @@ router.put('/lessons/:id', async (req, res, next) => {
       }
     });
 
+    await touchProgram(req.prisma, lesson.programId);
     clearProgramsCache();
 
     res.json({ success: true, data: { lesson } });
@@ -643,16 +673,17 @@ router.delete('/lessons/:id', async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    // Collect R2 URLs before deletion
+    // Collect R2 URLs and programId before deletion
     const lesson = await req.prisma.lesson.findUnique({
       where: { id },
       select: {
-        contentUrl: true, thumbnailUrl: true, type: true,
+        programId: true, contentUrl: true, thumbnailUrl: true, type: true,
         attachments: { select: { fileUrl: true } }
       }
     });
 
     await req.prisma.lesson.delete({ where: { id } });
+    if (lesson) await touchProgram(req.prisma, lesson.programId);
 
     // Clean up R2 files
     if (lesson) {
@@ -749,6 +780,8 @@ router.put('/:id/reorder', async (req, res, next) => {
         });
       }
     }
+
+    await touchProgram(req.prisma, programId);
 
     res.json({
       success: true,

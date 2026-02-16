@@ -859,6 +859,8 @@ router.post('/enroll/:programId', async (req, res, next) => {
 router.get('/discover', async (req, res, next) => {
   try {
     const userId = req.user.id;
+    const { page = 1, limit = 12, search } = req.query;
+    const skip = (parseInt(page) - 1) * parseInt(limit);
 
     // Get enrolled program IDs
     const enrollments = await req.prisma.enrollment.findMany({
@@ -867,17 +869,31 @@ router.get('/discover', async (req, res, next) => {
     });
     const enrolledProgramIds = enrollments.map(e => e.programId);
 
-    // Find published programs not enrolled in
-    const programs = await req.prisma.program.findMany({
-      where: {
-        isPublished: true,
-        ...(enrolledProgramIds.length > 0 ? { id: { notIn: enrolledProgramIds } } : {})
-      },
-      include: {
-        _count: { select: { lessons: true } }
-      },
-      orderBy: { createdAt: 'desc' }
-    });
+    const where = {
+      isPublished: true,
+      isPublic: true,
+      ...(enrolledProgramIds.length > 0 ? { id: { notIn: enrolledProgramIds } } : {}),
+      ...(search ? {
+        OR: [
+          { name: { contains: search, mode: 'insensitive' } },
+          { description: { contains: search, mode: 'insensitive' } }
+        ]
+      } : {})
+    };
+
+    // Find published public programs not enrolled in
+    const [programs, total] = await Promise.all([
+      req.prisma.program.findMany({
+        where,
+        include: {
+          _count: { select: { lessons: true } }
+        },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: parseInt(limit)
+      }),
+      req.prisma.program.count({ where })
+    ]);
 
     res.json({
       success: true,
@@ -891,7 +907,13 @@ router.get('/discover', async (req, res, next) => {
           price: p.price,
           currency: p.currency,
           lessonCount: p._count.lessons
-        }))
+        })),
+        pagination: {
+          total,
+          page: parseInt(page),
+          limit: parseInt(limit),
+          totalPages: Math.ceil(total / parseInt(limit))
+        }
       }
     });
   } catch (error) {

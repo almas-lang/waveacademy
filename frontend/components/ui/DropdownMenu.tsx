@@ -28,10 +28,18 @@ export default function DropdownMenu({ children, trigger, className = '' }: Drop
     if (triggerRef.current) {
       const rect = triggerRef.current.getBoundingClientRect();
       const menuWidth = 180; // min-width of dropdown-menu
+      const menuHeight = 200; // estimated max height of dropdown
 
       // Calculate position - align to right edge of button
       let left = rect.right - menuWidth;
-      const top = rect.bottom + 4;
+      let top = rect.bottom + 4;
+
+      // If menu would extend below viewport, open above the button instead
+      if (rect.bottom + menuHeight > window.innerHeight) {
+        top = rect.top - menuHeight - 4;
+        // If it would go above viewport too, just place at top
+        if (top < 8) top = 8;
+      }
 
       // Ensure menu doesn't go off left edge
       if (left < 8) {
@@ -91,8 +99,14 @@ export default function DropdownMenu({ children, trigger, className = '' }: Drop
       if (triggerRef.current) {
         const rect = triggerRef.current.getBoundingClientRect();
         const menuWidth = 180;
+        const menuHeight = 200;
         let left = rect.right - menuWidth;
-        const top = rect.bottom + 4;
+        let top = rect.bottom + 4;
+
+        if (rect.bottom + menuHeight > window.innerHeight) {
+          top = rect.top - menuHeight - 4;
+          if (top < 8) top = 8;
+        }
 
         if (left < 8) left = 8;
         if (left + menuWidth > window.innerWidth - 8) {
@@ -113,7 +127,7 @@ export default function DropdownMenu({ children, trigger, className = '' }: Drop
   }, [isOpen]);
 
   return (
-    <div className={`relative ${className}`} onClick={(e) => e.stopPropagation()}>
+    <div className={`relative ${className}`} onClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()}>
       <button
         ref={triggerRef}
         onClick={handleOpen}

@@ -22,7 +22,7 @@ import {
 import { AdminHeader } from '@/components/admin';
 import { useSidebar } from '@/lib/sidebar-context';
 import { Button, Badge, PageLoading, Modal, Select, getStatusVariant, formatStatus } from '@/components/ui';
-import { useLearner, usePrograms, useUpdateLearnerStatus, useResetLearnerPassword, useEnrollLearner, useUpdateLearner, useUnenrollLearner, useLearnerSessions, useLogoutLearnerAllDevices } from '@/hooks';
+import { useLearner, usePrograms, useUpdateLearnerStatus, useResetLearnerPassword, useEnrollLearner, useUpdateLearner, useUnenrollLearner, useDeleteLearner, useLearnerSessions, useLogoutLearnerAllDevices } from '@/hooks';
 import { format } from 'date-fns';
 
 export default function LearnerDetailPage() {
@@ -36,6 +36,7 @@ export default function LearnerDetailPage() {
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState({ name: '', email: '', mobile: '', registrationNumber: '' });
   const [unenrollConfirm, setUnenrollConfirm] = useState<{ programId: string; programName: string } | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const { data, isLoading, refetch } = useLearner(learnerId);
   const { data: programs } = usePrograms();
@@ -45,6 +46,7 @@ export default function LearnerDetailPage() {
   const enrollLearner = useEnrollLearner();
   const updateLearner = useUpdateLearner();
   const unenrollLearner = useUnenrollLearner();
+  const deleteLearner = useDeleteLearner();
   const logoutAllDevices = useLogoutLearnerAllDevices();
 
   if (isLoading) {
@@ -326,6 +328,19 @@ export default function LearnerDetailPage() {
                       </Button>
                     )}
                   </div>
+
+                  {/* Delete */}
+                  <div className="pt-4 mt-4 border-t border-slate-100">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full text-red-600 border-red-200 hover:bg-red-50"
+                      leftIcon={<Trash2 className="w-4 h-4" />}
+                      onClick={() => setShowDeleteConfirm(true)}
+                    >
+                      Delete Learner
+                    </Button>
+                  </div>
                 </>
               )}
             </div>
@@ -492,6 +507,41 @@ export default function LearnerDetailPage() {
             isLoading={unenrollLearner.isPending}
           >
             Remove
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      {/* Delete Learner Confirmation Modal */}
+      <Modal
+        isOpen={showDeleteConfirm}
+        onClose={() => setShowDeleteConfirm(false)}
+        title="Delete Learner"
+        size="sm"
+      >
+        <div className="text-center py-4">
+          <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Trash2 className="w-6 h-6 text-red-600" />
+          </div>
+          <p className="text-slate-600">
+            Are you sure you want to permanently delete <strong>{learner.name}</strong>?
+          </p>
+          <p className="text-sm text-slate-500 mt-2">
+            This will remove their account, all enrollments, progress, and payment records. This action cannot be undone.
+          </p>
+        </div>
+        <Modal.Footer>
+          <Button variant="outline" onClick={() => setShowDeleteConfirm(false)}>
+            Cancel
+          </Button>
+          <Button
+            variant="danger"
+            onClick={async () => {
+              await deleteLearner.mutateAsync(learner.id);
+              router.push('/admin/learners');
+            }}
+            isLoading={deleteLearner.isPending}
+          >
+            Delete Permanently
           </Button>
         </Modal.Footer>
       </Modal>

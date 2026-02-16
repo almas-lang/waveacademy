@@ -1,18 +1,29 @@
 'use client';
 
-import { useState } from 'react';
-import { Plus, Search, Eye, Mail, UserCheck, UserX } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
+import { Plus, Search, Eye, Mail, UserCheck, UserX, Trash2 } from 'lucide-react';
 import { AdminHeader } from '@/components/admin';
 import { useSidebar } from '@/lib/sidebar-context';
 import LearnerModal from '@/components/admin/LearnerModal';
-import { Button, Badge, Table, PageLoading, Pagination, getStatusVariant, formatStatus, DropdownMenu, DropdownItem, DropdownDivider } from '@/components/ui';
-import { useLearners, usePrograms, useUpdateLearnerStatus, useResetLearnerPassword } from '@/hooks';
+import { Button, Badge, Table, PageLoading, Pagination, Modal, getStatusVariant, formatStatus, DropdownMenu, DropdownItem, DropdownDivider } from '@/components/ui';
+import { useLearners, usePrograms, useUpdateLearnerStatus, useResetLearnerPassword, useDeleteLearner } from '@/hooks';
 import { Learner, LearnerFilters, UserStatus } from '@/types/admin';
 import { format } from 'date-fns';
 
 export default function LearnersPage() {
   const { openSidebar } = useSidebar();
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const [showModal, setShowModal] = useState(false);
+
+  useEffect(() => {
+    if (searchParams.get('action') === 'create') {
+      setShowModal(true);
+      router.replace('/admin/learners', { scroll: false });
+    }
+  }, [searchParams, router]);
+  const [deleteConfirm, setDeleteConfirm] = useState<Learner | null>(null);
   const [filters, setFilters] = useState<LearnerFilters>({
     page: 1,
     limit: 20,
@@ -23,6 +34,7 @@ export default function LearnersPage() {
   const { data, isLoading } = useLearners(filters);
   const updateStatus = useUpdateLearnerStatus();
   const resetPassword = useResetLearnerPassword();
+  const deleteLearner = useDeleteLearner();
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -151,6 +163,11 @@ export default function LearnersPage() {
               Activate
             </DropdownItem>
           )}
+          <DropdownDivider />
+          <DropdownItem variant="danger" onClick={() => setDeleteConfirm(learner)}>
+            <Trash2 className="w-4 h-4" />
+            Delete
+          </DropdownItem>
         </DropdownMenu>
       ),
     },
@@ -333,6 +350,42 @@ export default function LearnersPage() {
         isOpen={showModal}
         onClose={() => setShowModal(false)}
       />
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        isOpen={!!deleteConfirm}
+        onClose={() => setDeleteConfirm(null)}
+        title="Delete Learner"
+        size="sm"
+      >
+        <div className="text-center py-4">
+          <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Trash2 className="w-6 h-6 text-red-600" />
+          </div>
+          <p className="text-slate-600">
+            Are you sure you want to permanently delete <strong>{deleteConfirm?.name}</strong>?
+          </p>
+          <p className="text-sm text-slate-500 mt-2">
+            This will remove their account, all enrollments, progress, and payment records. This action cannot be undone.
+          </p>
+        </div>
+        <Modal.Footer>
+          <Button variant="outline" onClick={() => setDeleteConfirm(null)}>
+            Cancel
+          </Button>
+          <Button
+            variant="danger"
+            onClick={async () => {
+              if (!deleteConfirm) return;
+              await deleteLearner.mutateAsync(deleteConfirm.id);
+              setDeleteConfirm(null);
+            }}
+            isLoading={deleteLearner.isPending}
+          >
+            Delete Permanently
+          </Button>
+        </Modal.Footer>
+      </Modal>
     </>
   );
 }

@@ -19,6 +19,7 @@ import {
   Search,
   Mail,
   X,
+  RefreshCw,
 } from 'lucide-react';
 import { AdminHeader } from '@/components/admin';
 import { useSidebar } from '@/lib/sidebar-context';
@@ -125,6 +126,18 @@ export default function ProgramDetailPage() {
       await togglePublish.mutateAsync({
         id: program.id,
         isPublished: !program.isPublished,
+      });
+      refetch();
+    } catch {
+      // Error handled by mutation onError
+    }
+  };
+
+  const handleRepublish = async () => {
+    try {
+      await togglePublish.mutateAsync({
+        id: program.id,
+        isPublished: true,
       });
       refetch();
     } catch {
@@ -244,6 +257,17 @@ export default function ProgramDetailPage() {
                 >
                   Edit Details
                 </Button>
+                {program.isPublished && program.hasUnpublishedChanges && (
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    leftIcon={<RefreshCw className="w-4 h-4" />}
+                    onClick={handleRepublish}
+                    isLoading={togglePublish.isPending}
+                  >
+                    Republish
+                  </Button>
+                )}
                 <Button
                   variant="outline"
                   size="sm"

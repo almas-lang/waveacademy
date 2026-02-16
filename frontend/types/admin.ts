@@ -70,6 +70,7 @@ export interface ProgramDetail {
     slug?: string;
     price?: string | number | null;
     currency?: string;
+    hasUnpublishedChanges?: boolean;
   };
   content: ContentItem[];
 }

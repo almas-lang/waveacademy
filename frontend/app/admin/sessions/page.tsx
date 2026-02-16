@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { Plus, Calendar as CalendarIcon, Clock, Video, Edit, Trash2, ExternalLink, RefreshCw, ChevronLeft, ChevronRight, List, Grid3X3, X, MapPin, Users } from 'lucide-react';
 import { AdminHeader } from '@/components/admin';
 import { useSidebar } from '@/lib/sidebar-context';
@@ -15,7 +16,16 @@ type DeleteMode = 'single' | 'all';
 
 export default function SessionsPage() {
   const { openSidebar } = useSidebar();
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const [showModal, setShowModal] = useState(false);
+
+  useEffect(() => {
+    if (searchParams.get('action') === 'create') {
+      setShowModal(true);
+      router.replace('/admin/sessions', { scroll: false });
+    }
+  }, [searchParams, router]);
   const [editingSession, setEditingSession] = useState<Session | null>(null);
   const [previewSession, setPreviewSession] = useState<Session | null>(null);
   const [deletingSession, setDeletingSession] = useState<Session | null>(null);

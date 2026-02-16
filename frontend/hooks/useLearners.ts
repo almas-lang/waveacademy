@@ -94,6 +94,22 @@ export function useUpdateLearnerStatus() {
   });
 }
 
+// Delete learner
+export function useDeleteLearner() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => adminApi.deleteLearner(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: learnerKeys.all });
+      toast.success('Learner deleted permanently');
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.error?.message || 'Failed to delete learner');
+    },
+  });
+}
+
 // Reset learner password
 export function useResetLearnerPassword() {
   return useMutation({

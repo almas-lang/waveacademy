@@ -122,17 +122,17 @@ export default function AdminDashboard() {
       <div className="flex-1 p-6 lg:p-8">
         {/* Quick Actions */}
         <div className="flex flex-wrap gap-3 mb-6">
-          <Link href="/admin/programs">
+          <Link href="/admin/programs?action=create">
             <Button variant="outline" size="sm" leftIcon={<Plus className="w-4 h-4" />}>
               Create Program
             </Button>
           </Link>
-          <Link href="/admin/learners">
+          <Link href="/admin/learners?action=create">
             <Button variant="outline" size="sm" leftIcon={<UserPlus className="w-4 h-4" />}>
               Add Learner
             </Button>
           </Link>
-          <Link href="/admin/sessions">
+          <Link href="/admin/sessions?action=create">
             <Button variant="outline" size="sm" leftIcon={<Calendar className="w-4 h-4" />}>
               Schedule Session
             </Button>
