@@ -44,7 +44,7 @@ router.get('/', async (req, res, next) => {
         include: {
           enrollments: {
             include: {
-              program: { select: { name: true, isPublic: true } }
+              program: { select: { name: true, isPublic: true, price: true } }
             }
           }
         },
@@ -57,6 +57,9 @@ router.get('/', async (req, res, next) => {
 
     const formattedLearners = learners.map(learner => {
       const hasPrivateProgram = learner.enrollments.some(e => !e.program.isPublic);
+      const hasPendingPayment = learner.enrollments.some(
+        e => e.program.price && Number(e.program.price) > 0 && !e.paidAt
+      );
       return {
         id: learner.id,
         name: learner.name,
@@ -66,6 +69,7 @@ router.get('/', async (req, res, next) => {
         registrationNumber: learner.registrationNumber,
         enrolledPrograms: learner.enrollments.map(e => e.program.name),
         learnerType: hasPrivateProgram ? 'private' : 'public',
+        hasPendingPayment,
         createdAt: learner.createdAt
       };
     });

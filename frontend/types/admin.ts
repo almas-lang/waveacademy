@@ -18,6 +18,7 @@ export interface Learner {
   registrationNumber?: string;
   enrolledPrograms: string[];
   learnerType?: 'private' | 'public';
+  hasPendingPayment?: boolean;
   createdAt: string;
 }
 

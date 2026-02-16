@@ -99,8 +99,24 @@ export default function LearnersPage() {
       key: 'status',
       header: 'Status',
       render: (learner: Learner) => (
-        <Badge variant={getStatusVariant(learner.status)} dot>
-          {formatStatus(learner.status)}
+        <div className="flex flex-col gap-1">
+          <Badge variant={getStatusVariant(learner.status)} dot>
+            {formatStatus(learner.status)}
+          </Badge>
+          {learner.hasPendingPayment && (
+            <Badge variant="warning" size="sm">
+              Payment Pending
+            </Badge>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: 'type',
+      header: 'Type',
+      render: (learner: Learner) => (
+        <Badge variant={learner.learnerType === 'private' ? 'neutral' : 'info'} size="sm">
+          {learner.learnerType === 'private' ? 'Private' : 'Public'}
         </Badge>
       ),
     },
@@ -174,8 +190,6 @@ export default function LearnersPage() {
   ];
 
   const allLearners = data?.learners || [];
-  const privateLearners = allLearners.filter(l => l.learnerType !== 'public');
-  const publicLearners = allLearners.filter(l => l.learnerType === 'public');
 
   const hasFilters = filters.search || filters.status || filters.programId;
 
@@ -192,10 +206,7 @@ export default function LearnersPage() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
           <div>
             <p className="text-slate-500 text-sm">
-              {privateLearners.length} learner{privateLearners.length !== 1 ? 's' : ''}
-              {publicLearners.length > 0 && (
-                <span> &middot; {publicLearners.length} short course learner{publicLearners.length !== 1 ? 's' : ''}</span>
-              )}
+              {allLearners.length} learner{allLearners.length !== 1 ? 's' : ''}
             </p>
           </div>
           <Button
@@ -267,12 +278,15 @@ export default function LearnersPage() {
           <div className="bg-white rounded-xl border border-slate-200/80 shadow-soft overflow-hidden">
             <PageLoading />
           </div>
-        ) : allLearners.length === 0 ? (
+        ) : (
           <div className="bg-white rounded-xl border border-slate-200/80 shadow-soft overflow-hidden">
             <Table
               columns={columns}
-              data={[]}
+              data={allLearners}
               rowKey={(learner) => learner.id}
+              onRowClick={(learner) => {
+                window.location.href = `/admin/learners/${learner.id}`;
+              }}
               emptyState={{
                 title: 'No learners found',
                 description: hasFilters
@@ -283,48 +297,6 @@ export default function LearnersPage() {
                   : { label: 'Add Learner', onClick: () => setShowModal(true) },
               }}
             />
-          </div>
-        ) : (
-          <div className="space-y-6">
-            {/* Learners (Private Programs) */}
-            {privateLearners.length > 0 && (
-              <div>
-                <div className="flex items-center gap-2 mb-3">
-                  <h2 className="text-sm font-semibold text-slate-900">Learners</h2>
-                  <span className="text-xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">{privateLearners.length}</span>
-                </div>
-                <div className="bg-white rounded-xl border border-slate-200/80 shadow-soft overflow-hidden">
-                  <Table
-                    columns={columns}
-                    data={privateLearners}
-                    rowKey={(learner) => learner.id}
-                    onRowClick={(learner) => {
-                      window.location.href = `/admin/learners/${learner.id}`;
-                    }}
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* Short Course Learners (Public Programs Only) */}
-            {publicLearners.length > 0 && (
-              <div>
-                <div className="flex items-center gap-2 mb-3">
-                  <h2 className="text-sm font-semibold text-slate-900">Short Course Learners</h2>
-                  <span className="text-xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">{publicLearners.length}</span>
-                </div>
-                <div className="bg-white rounded-xl border border-slate-200/80 shadow-soft overflow-hidden">
-                  <Table
-                    columns={columns}
-                    data={publicLearners}
-                    rowKey={(learner) => learner.id}
-                    onRowClick={(learner) => {
-                      window.location.href = `/admin/learners/${learner.id}`;
-                    }}
-                  />
-                </div>
-              </div>
-            )}
           </div>
         )}
 
