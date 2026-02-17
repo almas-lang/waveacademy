@@ -70,4 +70,21 @@ async function cacheDel(key) {
   }
 }
 
-module.exports = { cacheGet, cacheDel };
+/**
+ * Acquire a distributed lock (SET NX with TTL).
+ * Returns true if this caller won the lock, false if another instance holds it.
+ * Without Redis, always returns true (single-instance fallback).
+ */
+async function acquireLock(key, ttlSeconds = 300) {
+  if (!redis) return true;
+
+  try {
+    const result = await redis.set(key, '1', { nx: true, ex: ttlSeconds });
+    return result === 'OK';
+  } catch (err) {
+    console.error('Redis LOCK error:', err.message);
+    return true; // Fallback: run anyway if Redis fails
+  }
+}
+
+module.exports = { cacheGet, cacheDel, acquireLock };

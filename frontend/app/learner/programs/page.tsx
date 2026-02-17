@@ -127,17 +127,16 @@ export default function LearnerProgramsPage() {
           {program.enrollmentType === 'FREE' && program.freeLessons != null && program.freeLessons < program.totalLessons && (
             <p className="text-xs text-slate-500 mt-2">
               <span className="font-medium">{program.freeLessons} free</span> of {program.totalLessons} lessons ·{' '}
-              <span
-                role="link"
+              <button
+                type="button"
                 className="text-accent-600 hover:text-accent-700 font-medium cursor-pointer"
                 onClick={(e) => {
-                  e.preventDefault();
                   e.stopPropagation();
                   router.push(`/learner/programs/${program.id}`);
                 }}
               >
                 Unlock all →
-              </span>
+              </button>
             </p>
           )}
         </div>

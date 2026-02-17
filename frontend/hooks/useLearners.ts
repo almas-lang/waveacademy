@@ -1,9 +1,14 @@
 'use client';
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { AxiosError } from 'axios';
 import { adminApi } from '@/lib/api';
 import { Learner, LearnerDetail, LearnerFilters, CreateLearnerData, PaginationInfo } from '@/types/admin';
 import toast from 'react-hot-toast';
+
+interface ApiErrorResponse {
+  error?: { message?: string };
+}
 
 // Query keys
 export const learnerKeys = {
@@ -52,7 +57,7 @@ export function useCreateLearner() {
       queryClient.invalidateQueries({ queryKey: learnerKeys.all });
       toast.success('Learner created successfully. Setup email sent.');
     },
-    onError: (error: any) => {
+    onError: (error: AxiosError<ApiErrorResponse>) => {
       toast.error(error.response?.data?.error?.message || 'Failed to create learner');
     },
   });
@@ -70,7 +75,7 @@ export function useUpdateLearner() {
       queryClient.invalidateQueries({ queryKey: learnerKeys.detail(id) });
       toast.success('Learner updated successfully');
     },
-    onError: (error: any) => {
+    onError: (error: AxiosError<ApiErrorResponse>) => {
       toast.error(error.response?.data?.error?.message || 'Failed to update learner');
     },
   });
@@ -88,7 +93,7 @@ export function useUpdateLearnerStatus() {
       queryClient.invalidateQueries({ queryKey: learnerKeys.detail(id) });
       toast.success('Learner status updated');
     },
-    onError: (error: any) => {
+    onError: (error: AxiosError<ApiErrorResponse>) => {
       toast.error(error.response?.data?.error?.message || 'Failed to update status');
     },
   });
@@ -104,7 +109,7 @@ export function useDeleteLearner() {
       queryClient.invalidateQueries({ queryKey: learnerKeys.all });
       toast.success('Learner deleted permanently');
     },
-    onError: (error: any) => {
+    onError: (error: AxiosError<ApiErrorResponse>) => {
       toast.error(error.response?.data?.error?.message || 'Failed to delete learner');
     },
   });
@@ -117,7 +122,7 @@ export function useResetLearnerPassword() {
     onSuccess: () => {
       toast.success('Password reset email sent');
     },
-    onError: (error: any) => {
+    onError: (error: AxiosError<ApiErrorResponse>) => {
       toast.error(error.response?.data?.error?.message || 'Failed to send reset email');
     },
   });
@@ -137,7 +142,7 @@ export function useEnrollLearner() {
       queryClient.invalidateQueries({ queryKey: ['admin', 'programs', programId, 'learners'] });
       toast.success('Learner enrolled in program');
     },
-    onError: (error: any) => {
+    onError: (error: AxiosError<ApiErrorResponse>) => {
       toast.error(error.response?.data?.error?.message || 'Failed to enroll learner');
     },
   });
@@ -157,7 +162,7 @@ export function useUnenrollLearner() {
       queryClient.invalidateQueries({ queryKey: ['admin', 'programs', programId, 'learners'] });
       toast.success('Learner removed from program');
     },
-    onError: (error: any) => {
+    onError: (error: AxiosError<ApiErrorResponse>) => {
       toast.error(error.response?.data?.error?.message || 'Failed to remove learner');
     },
   });
@@ -197,7 +202,7 @@ export function useLogoutLearnerAllDevices() {
       queryClient.invalidateQueries({ queryKey: ['admin', 'learners', learnerId, 'sessions'] });
       toast.success(response.message || 'Logged out from all devices');
     },
-    onError: (error: any) => {
+    onError: (error: AxiosError<ApiErrorResponse>) => {
       toast.error(error.response?.data?.error?.message || 'Failed to logout');
     },
   });

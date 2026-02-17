@@ -30,6 +30,7 @@ const models = [
   'notification',
   'payment',
   'emailLog',
+  'auditLog',
 ];
 
 function createMockPrisma() {

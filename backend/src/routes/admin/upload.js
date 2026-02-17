@@ -2,12 +2,27 @@
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
+const rateLimit = require('express-rate-limit');
 const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
 const { v4: uuidv4 } = require('uuid');
 const { authenticate, requireAdmin } = require('../../middleware/auth');
 
 router.use(authenticate);
 router.use(requireAdmin);
+
+// Rate limit uploads: 20 per minute per user (auth required, so user.id always exists)
+const uploadLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 20,
+  keyGenerator: (req) => req.user?.id || 'unknown',
+  message: {
+    success: false,
+    error: { code: 'TOO_MANY_REQUESTS', message: 'Too many uploads. Please wait a moment.' }
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  validate: { ip: false },
+});
 
 // Allowed MIME types
 const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
@@ -62,7 +77,7 @@ const r2Client = new S3Client({
  * POST /admin/upload/thumbnail
  * Upload program thumbnail
  */
-router.post('/thumbnail', upload.single('file'), async (req, res, next) => {
+router.post('/thumbnail', uploadLimiter, upload.single('file'), async (req, res, next) => {
   try {
     if (!req.file) {
       return res.status(400).json({
@@ -98,7 +113,7 @@ router.post('/thumbnail', upload.single('file'), async (req, res, next) => {
     console.error('Thumbnail upload error:', error.message, error.Code || error.code);
     res.status(500).json({
       success: false,
-      error: { code: 'UPLOAD_ERROR', message: `Upload failed: ${error.message}` }
+      error: { code: 'UPLOAD_ERROR', message: 'Upload failed. Please try again.' }
     });
   }
 });
@@ -107,7 +122,7 @@ router.post('/thumbnail', upload.single('file'), async (req, res, next) => {
  * POST /admin/upload/pdf
  * Upload PDF lesson
  */
-router.post('/pdf', upload.single('file'), async (req, res, next) => {
+router.post('/pdf', uploadLimiter, upload.single('file'), async (req, res, next) => {
   try {
     if (!req.file) {
       return res.status(400).json({
@@ -147,7 +162,7 @@ router.post('/pdf', upload.single('file'), async (req, res, next) => {
  * POST /admin/upload/attachment
  * Upload lesson attachment
  */
-router.post('/attachment', upload.single('file'), async (req, res, next) => {
+router.post('/attachment', uploadLimiter, upload.single('file'), async (req, res, next) => {
   try {
     if (!req.file) {
       return res.status(400).json({

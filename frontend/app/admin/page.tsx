@@ -1,9 +1,15 @@
 'use client';
 
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import { BookOpen, Users, Calendar, Clock, Video, ArrowRight, Plus, UserPlus, Zap, IndianRupee } from 'lucide-react';
-import { AdminHeader, StatsCard, EnrollmentChart, DailyActiveUsersChart, ProgramPerformance, RecentActivity, RevenueChart } from '@/components/admin';
+import { AdminHeader, StatsCard, ProgramPerformance, RecentActivity } from '@/components/admin';
 import { Button } from '@/components/ui';
+
+// Lazy load chart components (recharts is ~60KB gzipped)
+const EnrollmentChart = dynamic(() => import('@/components/admin/EnrollmentChart'), { ssr: false });
+const DailyActiveUsersChart = dynamic(() => import('@/components/admin/DailyActiveUsersChart'), { ssr: false });
+const RevenueChart = dynamic(() => import('@/components/admin/RevenueChart'), { ssr: false });
 import { useDashboardAnalytics, useTodaySessions } from '@/hooks';
 import { useAuthStore } from '@/lib/auth-store';
 import { useSidebar } from '@/lib/sidebar-context';

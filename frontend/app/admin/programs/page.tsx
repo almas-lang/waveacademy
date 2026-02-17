@@ -28,7 +28,7 @@ export default function ProgramsPage() {
   const [deletingProgram, setDeletingProgram] = useState<Program | null>(null);
   const [page, setPage] = useState(1);
 
-  const { data, isLoading } = useProgramsPaginated({ page, limit: 20 });
+  const { data, isLoading, isError } = useProgramsPaginated({ page, limit: 20 });
   const programs = data?.programs;
   const pagination = data?.pagination;
   const deleteProgram = useDeleteProgram();
@@ -205,7 +205,14 @@ export default function ProgramsPage() {
         </div>
 
         {/* Programs Tables */}
-        {isLoading ? (
+        {isError ? (
+          <div className="bg-white rounded-xl border border-slate-200/80 shadow-soft overflow-hidden">
+            <div className="text-center py-16">
+              <p className="text-red-600 font-medium mb-1">Failed to load programs</p>
+              <p className="text-sm text-slate-500">Please try refreshing the page.</p>
+            </div>
+          </div>
+        ) : isLoading ? (
           <div className="bg-white rounded-xl border border-slate-200/80 shadow-soft overflow-hidden">
             <div className="flex items-center justify-center py-16">
               <InlineLoading text="Loading programs..." />

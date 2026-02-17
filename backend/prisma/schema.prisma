@@ -38,6 +38,8 @@ model User {
   payments      Payment[]
   emailLogs     EmailLog[]
 
+  @@index([role])
+  @@index([status])
   @@map("users")
 }
 
@@ -151,6 +153,7 @@ model Lesson {
   progress    Progress[]
 
   @@index([programId])
+  @@index([programId, orderIndex])
   @@index([topicId])
   @@index([subtopicId])
   @@map("lessons")
@@ -214,7 +217,9 @@ model Progress {
 
   @@unique([userId, lessonId])
   @@index([userId])
+  @@index([userId, status])
   @@index([lessonId])
+  @@index([lessonId, status])
   @@map("progress")
 }
 
@@ -336,6 +341,7 @@ model Payment {
   @@index([userId])
   @@index([cashfreeOrderId])
   @@index([status])
+  @@index([status, createdAt])
   @@map("payments")
 }
 
@@ -353,4 +359,23 @@ model EmailLog {
 
   @@unique([userId, sequenceType, sequenceStep])
   @@map("email_logs")
+}
+
+// ============================================
+// AUDIT LOG (Admin Actions)
+// ============================================
+model AuditLog {
+  id         String   @id @default(uuid())
+  adminId    String   @map("admin_id")
+  adminEmail String   @map("admin_email")
+  action     String   // e.g. "DELETE_LEARNER", "DELETE_PROGRAM"
+  targetType String   @map("target_type") // e.g. "User", "Program"
+  targetId   String   @map("target_id")
+  details    Json?    // e.g. { name: "Learner Name" }
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([adminId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("audit_logs")
 }

@@ -365,116 +365,112 @@ router.get('/programs/:id', async (req, res, next) => {
       });
     }
 
-    // Get program with content
-    const program = await req.prisma.program.findUnique({
-      where: { id },
-      include: {
-        topics: {
-          include: {
-            subtopics: {
-              include: {
-                lessons: { orderBy: { orderIndex: 'asc' } }
+    const cacheKey = `learner:program:${userId}:${id}`;
+    const data = await cacheGet(cacheKey, async () => {
+      // Get program with content
+      const program = await req.prisma.program.findUnique({
+        where: { id },
+        include: {
+          topics: {
+            include: {
+              subtopics: {
+                include: {
+                  lessons: { orderBy: { orderIndex: 'asc' } }
+                },
+                orderBy: { orderIndex: 'asc' }
               },
-              orderBy: { orderIndex: 'asc' }
+              lessons: {
+                where: { subtopicId: null },
+                orderBy: { orderIndex: 'asc' }
+              }
             },
-            lessons: {
-              where: { subtopicId: null },
-              orderBy: { orderIndex: 'asc' }
-            }
+            orderBy: { orderIndex: 'asc' }
           },
-          orderBy: { orderIndex: 'asc' }
-        },
-        lessons: {
-          where: { topicId: null, subtopicId: null },
-          orderBy: { orderIndex: 'asc' }
+          lessons: {
+            where: { topicId: null, subtopicId: null },
+            orderBy: { orderIndex: 'asc' }
+          }
         }
-      }
-    });
-
-    if (!program || !program.isPublished) {
-      return res.status(404).json({
-        success: false,
-        error: { code: 'NOT_FOUND', message: 'Program not found' }
       });
-    }
 
-    // Get user progress
-    const progressRecords = await req.prisma.progress.findMany({
-      where: { userId, lesson: { programId: id } }
-    });
+      if (!program || !program.isPublished) {
+        return null;
+      }
 
-    const progressMap = new Map(
-      progressRecords.map(p => [p.lessonId, p])
-    );
+      // Get user progress
+      const progressRecords = await req.prisma.progress.findMany({
+        where: { userId, lesson: { programId: id } }
+      });
 
-    const isFreeEnrollment = enrollment.type === 'FREE';
+      const progressMap = new Map(
+        progressRecords.map(p => [p.lessonId, p])
+      );
 
-    // Build content tree with progress (and gating for FREE enrollments)
-    const buildLessonWithProgress = (lesson) => {
-      const isLocked = isFreeEnrollment && !lesson.isFree;
-      return {
-        id: lesson.id,
-        type: 'lesson',
-        title: lesson.title,
-        lessonType: lesson.type,
-        durationSeconds: lesson.durationSeconds,
-        orderIndex: lesson.orderIndex,
-        isFree: lesson.isFree,
-        isLocked,
-        progress: isLocked
-          ? { status: 'NOT_STARTED', watchPositionSeconds: 0 }
-          : (progressMap.get(lesson.id) || { status: 'NOT_STARTED', watchPositionSeconds: 0 })
+      const isFreeEnrollment = enrollment.type === 'FREE';
+
+      // Build content tree with progress (and gating for FREE enrollments)
+      const buildLessonWithProgress = (lesson) => {
+        const isLocked = isFreeEnrollment && !lesson.isFree;
+        return {
+          id: lesson.id,
+          type: 'lesson',
+          title: lesson.title,
+          lessonType: lesson.type,
+          durationSeconds: lesson.durationSeconds,
+          orderIndex: lesson.orderIndex,
+          isFree: lesson.isFree,
+          isLocked,
+          progress: isLocked
+            ? { status: 'NOT_STARTED', watchPositionSeconds: 0 }
+            : (progressMap.get(lesson.id) || { status: 'NOT_STARTED', watchPositionSeconds: 0 })
+        };
       };
-    };
 
-    const content = [];
+      const content = [];
 
-    for (const topic of program.topics) {
-      const topicChildren = [];
+      for (const topic of program.topics) {
+        const topicChildren = [];
 
-      for (const subtopic of topic.subtopics) {
-        topicChildren.push({
-          id: subtopic.id,
-          type: 'subtopic',
-          name: subtopic.name,
-          orderIndex: subtopic.orderIndex,
-          children: subtopic.lessons.map(buildLessonWithProgress)
+        for (const subtopic of topic.subtopics) {
+          topicChildren.push({
+            id: subtopic.id,
+            type: 'subtopic',
+            name: subtopic.name,
+            orderIndex: subtopic.orderIndex,
+            children: subtopic.lessons.map(buildLessonWithProgress)
+          });
+        }
+
+        for (const lesson of topic.lessons) {
+          topicChildren.push(buildLessonWithProgress(lesson));
+        }
+
+        topicChildren.sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0));
+
+        content.push({
+          id: topic.id,
+          type: 'topic',
+          name: topic.name,
+          orderIndex: topic.orderIndex,
+          children: topicChildren
         });
       }
 
-      for (const lesson of topic.lessons) {
-        topicChildren.push(buildLessonWithProgress(lesson));
+      for (const lesson of program.lessons) {
+        content.push(buildLessonWithProgress(lesson));
       }
 
-      // Sort children by orderIndex so subtopics and direct lessons interleave correctly
-      topicChildren.sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0));
+      // Build progress map for frontend
+      const progress = {};
+      for (const p of progressRecords) {
+        progress[p.lessonId] = {
+          status: p.status,
+          watchPositionSeconds: p.watchPositionSeconds || 0,
+          completedAt: p.completedAt
+        };
+      }
 
-      content.push({
-        id: topic.id,
-        type: 'topic',
-        name: topic.name,
-        orderIndex: topic.orderIndex,
-        children: topicChildren
-      });
-    }
-
-    for (const lesson of program.lessons) {
-      content.push(buildLessonWithProgress(lesson));
-    }
-
-    // Build progress map for frontend
-    const progress = {};
-    for (const p of progressRecords) {
-      progress[p.lessonId] = {
-        status: p.status,
-        watchPositionSeconds: p.watchPositionSeconds || 0,
-        completedAt: p.completedAt
-      };
-    }
-
-    res.json({
-      success: true,
-      data: {
+      return {
         program: {
           id: program.id,
           name: program.name,
@@ -486,7 +482,19 @@ router.get('/programs/:id', async (req, res, next) => {
         enrollmentType: enrollment.type,
         content,
         progress
-      }
+      };
+    }, 120); // 2 min TTL
+
+    if (!data) {
+      return res.status(404).json({
+        success: false,
+        error: { code: 'NOT_FOUND', message: 'Program not found' }
+      });
+    }
+
+    res.json({
+      success: true,
+      data
     });
   } catch (error) {
     next(error);
@@ -933,56 +941,55 @@ router.get('/sessions', async (req, res, next) => {
     const month = parseInt(req.query.month) || (now.getMonth() + 1);
     const year = parseInt(req.query.year) || now.getFullYear();
 
-    const startDate = new Date(year, month - 1, 1);
-    const endDate = new Date(year, month, 0, 23, 59, 59);
+    const cacheKey = `learner:sessions:${userId}:${year}:${month}`;
+    const data = await cacheGet(cacheKey, async () => {
+      const startDate = new Date(year, month - 1, 1);
+      const endDate = new Date(year, month, 0, 23, 59, 59);
 
-    // Get enrolled program IDs — only ADMIN/PAID get session access
-    const enrollments = await req.prisma.enrollment.findMany({
-      where: { userId },
-      select: { programId: true, type: true }
-    });
-    const programIds = enrollments
-      .filter(e => e.type === 'ADMIN' || e.type === 'PAID')
-      .map(e => e.programId);
-
-    let expandedSessions = [];
-    if (programIds.length > 0) {
-      const programFilter = {
-        OR: [
-          { sessionPrograms: { some: { programId: null } } },
-          { sessionPrograms: { some: { programId: { in: programIds } } } }
-        ]
-      };
-
-      const sessions = await req.prisma.session.findMany({
-        where: {
-          OR: [
-            { isRecurring: false, startTime: { gte: startDate, lte: endDate }, ...programFilter },
-            { isRecurring: true, startTime: { lte: endDate }, ...programFilter }
-          ]
-        },
-        include: {
-          sessionPrograms: {
-            include: { program: { select: { name: true } } }
-          }
-        },
-        orderBy: { startTime: 'asc' }
+      // Get enrolled program IDs — only ADMIN/PAID get session access
+      const enrollments = await req.prisma.enrollment.findMany({
+        where: { userId },
+        select: { programId: true, type: true }
       });
+      const programIds = enrollments
+        .filter(e => e.type === 'ADMIN' || e.type === 'PAID')
+        .map(e => e.programId);
 
-      // Expand recurring sessions
-      for (const session of sessions) {
-        if (session.isRecurring) {
-          expandedSessions.push(...expandRecurringSession(session, startDate, endDate));
-        } else {
-          expandedSessions.push(session);
+      let expandedSessions = [];
+      if (programIds.length > 0) {
+        const programFilter = {
+          OR: [
+            { sessionPrograms: { some: { programId: null } } },
+            { sessionPrograms: { some: { programId: { in: programIds } } } }
+          ]
+        };
+
+        const sessions = await req.prisma.session.findMany({
+          where: {
+            OR: [
+              { isRecurring: false, startTime: { gte: startDate, lte: endDate }, ...programFilter },
+              { isRecurring: true, startTime: { lte: endDate }, ...programFilter }
+            ]
+          },
+          include: {
+            sessionPrograms: {
+              include: { program: { select: { name: true } } }
+            }
+          },
+          orderBy: { startTime: 'asc' }
+        });
+
+        for (const session of sessions) {
+          if (session.isRecurring) {
+            expandedSessions.push(...expandRecurringSession(session, startDate, endDate));
+          } else {
+            expandedSessions.push(session);
+          }
         }
+        expandedSessions.sort((a, b) => new Date(a.startTime) - new Date(b.startTime));
       }
-      expandedSessions.sort((a, b) => new Date(a.startTime) - new Date(b.startTime));
-    }
 
-    res.json({
-      success: true,
-      data: {
+      return {
         sessions: expandedSessions.map(s => ({
           id: s.id,
           name: s.name,
@@ -993,8 +1000,10 @@ router.get('/sessions', async (req, res, next) => {
           programName: s.sessionPrograms.find(sp => sp.program)?.program?.name || null
         })),
         total: expandedSessions.length
-      }
-    });
+      };
+    }, 180); // 3 min TTL
+
+    res.json({ success: true, data });
   } catch (error) {
     next(error);
   }

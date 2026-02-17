@@ -6,8 +6,18 @@ import { Providers } from './providers';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata = {
-  title: 'Wave Academy - Learning Platform',
+  metadataBase: new URL('https://learn.xperiencewave.com'),
+  title: {
+    default: 'Wave Academy - Learning Platform',
+    template: '%s | Wave Academy',
+  },
   description: 'Transform your learning journey with Wave Academy',
+  openGraph: {
+    type: 'website',
+    siteName: 'Wave Academy',
+    title: 'Wave Academy - Learning Platform',
+    description: 'Transform your learning journey with Wave Academy',
+  },
 };
 
 export default function RootLayout({

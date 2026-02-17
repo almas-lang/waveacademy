@@ -208,7 +208,19 @@ export const adminApi = {
     return response.data;
   },
 
-  updateLesson: async (id: string, data: any) => {
+  updateLesson: async (id: string, data: Partial<{
+    title: string;
+    type: 'VIDEO' | 'PDF' | 'TEXT';
+    contentUrl: string;
+    contentText: string;
+    thumbnailUrl: string;
+    instructorNotes: string;
+    durationSeconds: number;
+    orderIndex: number;
+    isFree: boolean;
+    topicId: string | null;
+    subtopicId: string | null;
+  }>) => {
     const response = await api.put(`/admin/programs/lessons/${id}`, data);
     return response.data;
   },
@@ -341,7 +353,16 @@ export const adminApi = {
     return response.data;
   },
 
-  updateSession: async (id: string, data: any) => {
+  updateSession: async (id: string, data: Partial<{
+    name: string;
+    description: string;
+    startTime: string;
+    endTime: string;
+    meetLink: string;
+    isRecurring: boolean;
+    recurrenceRule: string;
+    programIds: string[];
+  }>) => {
     const response = await api.put(`/admin/sessions/${id}`, data);
     return response.data;
   },

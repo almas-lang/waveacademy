@@ -1,9 +1,14 @@
 'use client';
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { AxiosError } from 'axios';
 import { adminApi } from '@/lib/api';
 import { Session, SessionFilters, CreateSessionData } from '@/types/admin';
 import toast from 'react-hot-toast';
+
+interface ApiErrorResponse {
+  error?: { message?: string };
+}
 
 // Query keys
 export const sessionKeys = {
@@ -57,7 +62,7 @@ export function useCreateSession() {
       queryClient.invalidateQueries({ queryKey: sessionKeys.all });
       toast.success('Session created successfully');
     },
-    onError: (error: any) => {
+    onError: (error: AxiosError<ApiErrorResponse>) => {
       toast.error(error.response?.data?.error?.message || 'Failed to create session');
     },
   });
@@ -75,7 +80,7 @@ export function useUpdateSession() {
       queryClient.invalidateQueries({ queryKey: sessionKeys.detail(id) });
       toast.success('Session updated successfully');
     },
-    onError: (error: any) => {
+    onError: (error: AxiosError<ApiErrorResponse>) => {
       toast.error(error.response?.data?.error?.message || 'Failed to update session');
     },
   });
@@ -92,7 +97,7 @@ export function useDeleteSession() {
       queryClient.invalidateQueries({ queryKey: sessionKeys.all });
       toast.success('Session deleted successfully');
     },
-    onError: (error: any) => {
+    onError: (error: AxiosError<ApiErrorResponse>) => {
       toast.error(error.response?.data?.error?.message || 'Failed to delete session');
     },
   });

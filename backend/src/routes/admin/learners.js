@@ -5,6 +5,7 @@ const crypto = require('crypto');
 const { authenticate, requireAdmin } = require('../../middleware/auth');
 const { sendPasswordSetupEmail, sendPasswordResetEmail } = require('../../utils/email');
 const { parsePagination } = require('../../utils/pagination');
+const { logAudit } = require('../../utils/audit');
 
 router.use(authenticate);
 router.use(requireAdmin);
@@ -105,6 +106,19 @@ router.post('/', async (req, res, next) => {
         success: false,
         error: { code: 'VALIDATION_ERROR', message: 'Email and name required' }
       });
+    }
+
+    // Validate programIds exist
+    if (programIds.length > 0) {
+      const validPrograms = await req.prisma.program.count({
+        where: { id: { in: programIds } }
+      });
+      if (validPrograms !== programIds.length) {
+        return res.status(400).json({
+          success: false,
+          error: { code: 'VALIDATION_ERROR', message: 'One or more program IDs are invalid' }
+        });
+      }
     }
 
     // Check if email exists
@@ -466,6 +480,14 @@ router.delete('/:id', async (req, res, next) => {
     }
 
     await req.prisma.user.delete({ where: { id } });
+
+    logAudit(req.prisma, {
+      admin: req.user,
+      action: 'DELETE_LEARNER',
+      targetType: 'User',
+      targetId: id,
+      details: { name: learner.name },
+    });
 
     res.json({
       success: true,

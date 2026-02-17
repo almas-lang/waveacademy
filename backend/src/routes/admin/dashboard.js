@@ -58,7 +58,9 @@ router.get('/analytics', async (req, res, next) => {
         totalRevenueAgg,
         revenueThisMonthAgg,
         revenueLastMonthAgg,
-        dailyRevenueRaw,
+        revenueDailyRaw,
+        revenueWeeklyRaw,
+        revenueMonthlyRaw,
       ] = await Promise.all([
         // Programs
         prisma.program.count(),
@@ -166,26 +168,47 @@ router.get('/analytics', async (req, res, next) => {
         // Revenue: last month
         prisma.payment.aggregate({ where: { status: 'SUCCESS', createdAt: { gte: startOfLastMonth, lt: startOfMonth } }, _sum: { amount: true } }),
 
-        // Daily revenue (last 6 months)
+        // Daily revenue (last 30 days) — aggregated in SQL
         prisma.$queryRaw`
-          SELECT
-            d.day AS raw_date,
-            TO_CHAR(d.day, 'Mon DD') AS date,
-            CAST(COALESCE(p.total, 0) AS FLOAT) AS revenue
-          FROM generate_series(
-            ${sixMonthsAgo}::date,
-            ${startOfToday}::date,
-            '1 day'::interval
-          ) AS d(day)
+          SELECT TO_CHAR(d.day, 'Mon DD') AS label,
+                 CAST(COALESCE(p.total, 0) AS FLOAT) AS revenue
+          FROM generate_series(${thirtyDaysAgo}::date, ${startOfToday}::date, '1 day'::interval) AS d(day)
           LEFT JOIN (
-            SELECT
-              DATE_TRUNC('day', created_at) AS day,
-              SUM(amount) AS total
-            FROM payments
-            WHERE status = 'SUCCESS' AND created_at >= ${sixMonthsAgo}
-            GROUP BY DATE_TRUNC('day', created_at)
+            SELECT DATE_TRUNC('day', created_at) AS day, SUM(amount) AS total
+            FROM payments WHERE status = 'SUCCESS' AND created_at >= ${thirtyDaysAgo}
+            GROUP BY 1
           ) p ON DATE_TRUNC('day', d.day) = p.day
           ORDER BY d.day ASC
+        `,
+
+        // Weekly revenue (last 12 weeks) — aggregated in SQL
+        prisma.$queryRaw`
+          SELECT TO_CHAR(DATE_TRUNC('week', d.week), 'Mon DD') AS label,
+                 CAST(COALESCE(p.total, 0) AS FLOAT) AS revenue
+          FROM generate_series(
+            DATE_TRUNC('week', ${startOfToday}::date - INTERVAL '11 weeks'),
+            DATE_TRUNC('week', ${startOfToday}::date),
+            '1 week'::interval
+          ) AS d(week)
+          LEFT JOIN (
+            SELECT DATE_TRUNC('week', created_at) AS week, SUM(amount) AS total
+            FROM payments WHERE status = 'SUCCESS' AND created_at >= ${sixMonthsAgo}
+            GROUP BY 1
+          ) p ON d.week = p.week
+          ORDER BY d.week ASC
+        `,
+
+        // Monthly revenue (last 6 months) — aggregated in SQL
+        prisma.$queryRaw`
+          SELECT TO_CHAR(d.month, 'Mon') AS label,
+                 CAST(COALESCE(p.total, 0) AS FLOAT) AS revenue
+          FROM generate_series(${sixMonthsAgo}::date, ${startOfToday}::date, '1 month'::interval) AS d(month)
+          LEFT JOIN (
+            SELECT DATE_TRUNC('month', created_at) AS month, SUM(amount) AS total
+            FROM payments WHERE status = 'SUCCESS' AND created_at >= ${sixMonthsAgo}
+            GROUP BY 1
+          ) p ON d.month = p.month
+          ORDER BY d.month ASC
         `,
       ]);
 
@@ -197,39 +220,40 @@ router.get('/analytics', async (req, res, next) => {
       if (topPrograms.length > 0) {
         const programIds = topPrograms.map(p => p.id);
 
-        // Get total assigned lessons and completed lessons per program
-        const perProgramStats = await Promise.all(
-          programIds.map(async (programId) => {
-            const program = topPrograms.find(p => p.id === programId);
-            const lessonCount = program._count.lessons;
-            const enrollmentCount = program._count.enrollments;
+        // Single query: completed lessons per program (replaces N+1 loop)
+        const completedByProgram = await prisma.progress.groupBy({
+          by: ['lessonId'],
+          where: {
+            status: 'COMPLETED',
+            lesson: { programId: { in: programIds } },
+          },
+          _count: { _all: true },
+        });
 
-            if (lessonCount === 0 || enrollmentCount === 0) {
-              return { programId, completionRate: 0 };
-            }
+        // Map lesson IDs to program IDs using a single batch query
+        const lessonProgramMap = await prisma.lesson.findMany({
+          where: { id: { in: completedByProgram.map(c => c.lessonId) } },
+          select: { id: true, programId: true },
+        });
+        const lessonToProgram = Object.fromEntries(lessonProgramMap.map(l => [l.id, l.programId]));
 
-            const totalAssigned = lessonCount * enrollmentCount;
-            const completed = await prisma.progress.count({
-              where: {
-                status: 'COMPLETED',
-                lesson: { programId },
-              },
-            });
-
-            return {
-              programId,
-              completionRate: Math.round((completed / totalAssigned) * 100),
-            };
-          })
-        );
+        // Aggregate completed counts per program
+        const completedCounts = {};
+        for (const row of completedByProgram) {
+          const pid = lessonToProgram[row.lessonId];
+          if (pid) completedCounts[pid] = (completedCounts[pid] || 0) + row._count._all;
+        }
 
         programPerformance = topPrograms.map(p => {
-          const stats = perProgramStats.find(s => s.programId === p.id);
+          const lessonCount = p._count.lessons;
+          const enrollmentCount = p._count.enrollments;
+          const totalAssigned = lessonCount * enrollmentCount;
+          const completed = completedCounts[p.id] || 0;
           return {
             id: p.id,
             name: p.name,
-            enrollmentCount: p._count.enrollments,
-            completionRate: stats?.completionRate || 0,
+            enrollmentCount,
+            completionRate: totalAssigned > 0 ? Math.round((completed / totalAssigned) * 100) : 0,
           };
         });
       }
@@ -291,53 +315,14 @@ router.get('/analytics', async (req, res, next) => {
         users: d.users,
       }));
 
-      // ---- Revenue aggregation ----
+      // ---- Revenue aggregation (pre-aggregated in SQL) ----
       const totalRevenue = totalRevenueAgg._sum.amount || 0;
       const revenueThisMonth = revenueThisMonthAgg._sum.amount || 0;
       const revenueLastMonth = revenueLastMonthAgg._sum.amount || 0;
 
-      // Daily: last 30 entries
-      const revenueDaily = dailyRevenueRaw.slice(-30).map(d => ({
-        label: d.date,
-        revenue: Number(d.revenue),
-      }));
-
-      // Weekly: group into week buckets (last 12 weeks)
-      const twelveWeeksAgo = new Date(startOfToday);
-      twelveWeeksAgo.setDate(twelveWeeksAgo.getDate() - 83); // 12 weeks = 84 days
-      const weeklyMap = new Map();
-      for (const d of dailyRevenueRaw) {
-        const date = new Date(d.raw_date);
-        if (date < twelveWeeksAgo) continue;
-        // Get Monday of the week
-        const day = date.getDay();
-        const monday = new Date(date);
-        monday.setDate(date.getDate() - ((day + 6) % 7));
-        const weekKey = monday.toISOString().slice(0, 10);
-        weeklyMap.set(weekKey, (weeklyMap.get(weekKey) || 0) + Number(d.revenue));
-      }
-      const revenueWeekly = Array.from(weeklyMap.entries())
-        .sort(([a], [b]) => a.localeCompare(b))
-        .slice(-12)
-        .map(([key, rev]) => {
-          const d = new Date(key);
-          return { label: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }), revenue: rev };
-        });
-
-      // Monthly: group by month
-      const monthlyMap = new Map();
-      for (const d of dailyRevenueRaw) {
-        const date = new Date(d.raw_date);
-        const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-        monthlyMap.set(monthKey, (monthlyMap.get(monthKey) || 0) + Number(d.revenue));
-      }
-      const revenueMonthly = Array.from(monthlyMap.entries())
-        .sort(([a], [b]) => a.localeCompare(b))
-        .map(([key, rev]) => {
-          const [y, m] = key.split('-');
-          const d = new Date(Number(y), Number(m) - 1);
-          return { label: d.toLocaleDateString('en-US', { month: 'short' }), revenue: rev };
-        });
+      const revenueDaily = revenueDailyRaw.map(d => ({ label: d.label, revenue: Number(d.revenue) }));
+      const revenueWeekly = revenueWeeklyRaw.map(d => ({ label: d.label, revenue: Number(d.revenue) }));
+      const revenueMonthly = revenueMonthlyRaw.map(d => ({ label: d.label, revenue: Number(d.revenue) }));
 
       return {
         stats: {

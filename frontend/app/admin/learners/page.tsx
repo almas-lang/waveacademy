@@ -31,7 +31,7 @@ export default function LearnersPage() {
   const [searchInput, setSearchInput] = useState('');
 
   const { data: programs } = usePrograms();
-  const { data, isLoading } = useLearners(filters);
+  const { data, isLoading, isError } = useLearners(filters);
   const updateStatus = useUpdateLearnerStatus();
   const resetPassword = useResetLearnerPassword();
   const deleteLearner = useDeleteLearner();
@@ -274,7 +274,14 @@ export default function LearnersPage() {
           </div>
         </div>
 
-        {isLoading ? (
+        {isError ? (
+          <div className="bg-white rounded-xl border border-slate-200/80 shadow-soft overflow-hidden">
+            <div className="text-center py-16">
+              <p className="text-red-600 font-medium mb-1">Failed to load learners</p>
+              <p className="text-sm text-slate-500">Please try refreshing the page.</p>
+            </div>
+          </div>
+        ) : isLoading ? (
           <div className="bg-white rounded-xl border border-slate-200/80 shadow-soft overflow-hidden">
             <PageLoading />
           </div>

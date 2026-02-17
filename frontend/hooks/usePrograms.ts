@@ -1,9 +1,14 @@
 'use client';
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { AxiosError } from 'axios';
 import { adminApi } from '@/lib/api';
 import { Program, ProgramDetail, CreateProgramData, CreateTopicData, CreateSubtopicData, CreateLessonData } from '@/types/admin';
 import toast from 'react-hot-toast';
+
+interface ApiErrorResponse {
+  error?: { message?: string };
+}
 
 // Query keys
 export const programKeys = {
@@ -70,7 +75,7 @@ export function useCreateProgram() {
       queryClient.invalidateQueries({ queryKey: programKeys.all });
       toast.success('Program created successfully');
     },
-    onError: (error: any) => {
+    onError: (error: AxiosError<ApiErrorResponse>) => {
       toast.error(error.response?.data?.error?.message || 'Failed to create program');
     },
   });
@@ -87,7 +92,7 @@ export function useUpdateProgram() {
       queryClient.invalidateQueries({ queryKey: programKeys.all });
       toast.success('Program updated successfully');
     },
-    onError: (error: any) => {
+    onError: (error: AxiosError<ApiErrorResponse>) => {
       toast.error(error.response?.data?.error?.message || 'Failed to update program');
     },
   });
@@ -103,7 +108,7 @@ export function useDeleteProgram() {
       queryClient.invalidateQueries({ queryKey: programKeys.all });
       toast.success('Program deleted successfully');
     },
-    onError: (error: any) => {
+    onError: (error: AxiosError<ApiErrorResponse>) => {
       toast.error(error.response?.data?.error?.message || 'Failed to delete program');
     },
   });
@@ -120,7 +125,7 @@ export function useTogglePublish() {
       queryClient.invalidateQueries({ queryKey: programKeys.all });
       toast.success('Program status updated');
     },
-    onError: (error: any) => {
+    onError: (error: AxiosError<ApiErrorResponse>) => {
       toast.error(error.response?.data?.error?.message || 'Failed to update status');
     },
   });
@@ -136,7 +141,7 @@ export function useCreateTopic() {
       queryClient.invalidateQueries({ queryKey: programKeys.detail(programId) });
       toast.success('Topic created successfully');
     },
-    onError: (error: any) => {
+    onError: (error: AxiosError<ApiErrorResponse>) => {
       toast.error(error.response?.data?.error?.message || 'Failed to create topic');
     },
   });
@@ -152,7 +157,7 @@ export function useUpdateTopic() {
       queryClient.invalidateQueries({ queryKey: programKeys.detail(programId) });
       toast.success('Topic updated successfully');
     },
-    onError: (error: any) => {
+    onError: (error: AxiosError<ApiErrorResponse>) => {
       toast.error(error.response?.data?.error?.message || 'Failed to update topic');
     },
   });
@@ -168,7 +173,7 @@ export function useDeleteTopic() {
       queryClient.invalidateQueries({ queryKey: programKeys.detail(programId) });
       toast.success('Topic deleted successfully');
     },
-    onError: (error: any) => {
+    onError: (error: AxiosError<ApiErrorResponse>) => {
       toast.error(error.response?.data?.error?.message || 'Failed to delete topic');
     },
   });
@@ -185,7 +190,7 @@ export function useCreateSubtopic() {
       queryClient.invalidateQueries({ queryKey: programKeys.detail(programId) });
       toast.success('Subtopic created successfully');
     },
-    onError: (error: any) => {
+    onError: (error: AxiosError<ApiErrorResponse>) => {
       toast.error(error.response?.data?.error?.message || 'Failed to create subtopic');
     },
   });
@@ -201,7 +206,7 @@ export function useCreateLesson() {
       queryClient.invalidateQueries({ queryKey: programKeys.detail(programId) });
       toast.success('Lesson created successfully');
     },
-    onError: (error: any) => {
+    onError: (error: AxiosError<ApiErrorResponse>) => {
       toast.error(error.response?.data?.error?.message || 'Failed to create lesson');
     },
   });
@@ -217,7 +222,7 @@ export function useUpdateLesson() {
       queryClient.invalidateQueries({ queryKey: programKeys.detail(programId) });
       toast.success('Lesson updated successfully');
     },
-    onError: (error: any) => {
+    onError: (error: AxiosError<ApiErrorResponse>) => {
       toast.error(error.response?.data?.error?.message || 'Failed to update lesson');
     },
   });
@@ -233,7 +238,7 @@ export function useDeleteLesson() {
       queryClient.invalidateQueries({ queryKey: programKeys.detail(programId) });
       toast.success('Lesson deleted successfully');
     },
-    onError: (error: any) => {
+    onError: (error: AxiosError<ApiErrorResponse>) => {
       toast.error(error.response?.data?.error?.message || 'Failed to delete lesson');
     },
   });
@@ -257,7 +262,7 @@ export function useReorderContent() {
     onSuccess: (_, { programId }) => {
       queryClient.invalidateQueries({ queryKey: programKeys.detail(programId) });
     },
-    onError: (error: any) => {
+    onError: (error: AxiosError<ApiErrorResponse>) => {
       toast.error(error.response?.data?.error?.message || 'Failed to reorder content');
     },
   });
@@ -274,7 +279,7 @@ export function useUpdateSubtopic() {
       queryClient.invalidateQueries({ queryKey: programKeys.detail(programId) });
       toast.success('Subtopic updated successfully');
     },
-    onError: (error: any) => {
+    onError: (error: AxiosError<ApiErrorResponse>) => {
       toast.error(error.response?.data?.error?.message || 'Failed to update subtopic');
     },
   });
@@ -291,7 +296,7 @@ export function useDeleteSubtopic() {
       queryClient.invalidateQueries({ queryKey: programKeys.detail(programId) });
       toast.success('Subtopic deleted successfully');
     },
-    onError: (error: any) => {
+    onError: (error: AxiosError<ApiErrorResponse>) => {
       toast.error(error.response?.data?.error?.message || 'Failed to delete subtopic');
     },
   });

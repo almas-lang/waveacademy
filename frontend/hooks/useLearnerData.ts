@@ -2,6 +2,7 @@
 
 import { useRef, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { AxiosError } from 'axios';
 import { learnerApi } from '@/lib/api';
 import {
   LearnerHome,
@@ -23,7 +24,7 @@ export const learnerKeys = {
   sessionsCalendar: (month: number, year: number) =>
     [...learnerKeys.all, 'sessions', 'calendar', month, year] as const,
   profile: () => [...learnerKeys.all, 'profile'] as const,
-  discover: (params?: Record<string, any>) => [...learnerKeys.all, 'discover', params] as const,
+  discover: (params?: Record<string, string | number | undefined>) => [...learnerKeys.all, 'discover', params] as const,
 };
 
 // Fetch learner home/dashboard data
@@ -120,8 +121,8 @@ export function useUpdateLessonProgress() {
     onSuccess: () => {
       lastSentRef.current = Date.now();
     },
-    onError: (error: any) => {
-      console.error('Failed to update progress:', error);
+    onError: (error: AxiosError) => {
+      console.error('Failed to update progress:', error.message);
     },
   });
 
@@ -173,7 +174,7 @@ export function useSelfEnroll() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: learnerKeys.home() });
     },
-    onError: (error: any) => {
+    onError: (error: AxiosError<{ error?: { message?: string } }>) => {
       toast.error(error.response?.data?.error?.message || 'Failed to enroll');
     },
   });
@@ -193,7 +194,7 @@ export function useCompleteLesson() {
       // Invalidate profile so stats (lessons done, completed programs) update
       queryClient.invalidateQueries({ queryKey: learnerKeys.profile() });
     },
-    onError: (error: any) => {
+    onError: (error: AxiosError<{ error?: { message?: string } }>) => {
       toast.error(error.response?.data?.error?.message || 'Failed to mark lesson as complete');
     },
   });

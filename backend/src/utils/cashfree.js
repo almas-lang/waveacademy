@@ -86,8 +86,7 @@ async function getPaymentStatus(orderId) {
 function verifyWebhookSignature(timestamp, rawBody, signature) {
   if (!WEBHOOK_SECRET) {
     if (process.env.NODE_ENV === 'production') {
-      console.error('CRITICAL: CASHFREE_WEBHOOK_SECRET not set in production');
-      return false;
+      throw new Error('CASHFREE_WEBHOOK_SECRET is not set — cannot verify webhooks in production');
     }
     console.warn('CASHFREE_WEBHOOK_SECRET not set, skipping verification (dev only)');
     return true;

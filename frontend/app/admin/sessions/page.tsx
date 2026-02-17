@@ -42,7 +42,7 @@ export default function SessionsPage() {
   });
 
   const { data: programs } = usePrograms();
-  const { data: sessions, isLoading } = useSessions(filters);
+  const { data: sessions, isLoading, isError } = useSessions(filters);
   const deleteSession = useDeleteSession();
 
   const handleMonthChange = (direction: 'prev' | 'next') => {
@@ -395,7 +395,12 @@ export default function SessionsPage() {
 
         {/* Sessions View */}
         <div className="bg-white rounded-xl border border-slate-200/80 shadow-soft overflow-hidden">
-          {isLoading ? (
+          {isError ? (
+            <div className="text-center py-16">
+              <p className="text-red-600 font-medium mb-1">Failed to load sessions</p>
+              <p className="text-sm text-slate-500">Please try refreshing the page.</p>
+            </div>
+          ) : isLoading ? (
             <PageLoading />
           ) : viewMode === 'calendar' ? (
             /* Calendar View */
@@ -495,14 +500,14 @@ export default function SessionsPage() {
       <Modal
         isOpen={!!previewSession}
         onClose={() => setPreviewSession(null)}
-        title=""
         size="md"
+        showCloseButton={false}
       >
         {previewSession && (
-          <div className="-mt-2">
+          <div>
             {/* Header */}
-            <div className="flex items-start justify-between mb-6">
-              <div>
+            <div className="flex items-start gap-3 mb-6">
+              <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1">
                   <h2 className="text-xl font-semibold text-primary-900">{previewSession.name}</h2>
                   {previewSession.isRecurring && (
@@ -522,6 +527,12 @@ export default function SessionsPage() {
                   </p>
                 )}
               </div>
+              <button
+                onClick={() => setPreviewSession(null)}
+                className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition-all duration-150 active:scale-90 shrink-0"
+              >
+                <X className="w-5 h-5" />
+              </button>
             </div>
 
             {/* Details */}
@@ -576,7 +587,7 @@ export default function SessionsPage() {
                       href={previewSession.meetLink}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="font-medium text-accent-600 hover:text-accent-700 truncate block"
+                      className="font-medium text-accent-600 hover:text-accent-700 break-all"
                     >
                       {previewSession.meetLink}
                     </a>

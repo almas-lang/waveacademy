@@ -33,6 +33,18 @@ const prisma = new PrismaClient({
 });
 
 const { sendNonPayerSequenceEmail, sendPayerSequenceEmail } = require('./utils/email');
+const { acquireLock } = require('./utils/cache');
+
+// Run a function only if this instance acquires the distributed lock
+async function runWithLock(lockKey, fn) {
+  const acquired = await acquireLock(lockKey, 300); // 5 min lock
+  if (!acquired) return; // Another instance is handling it
+  try {
+    await fn();
+  } catch (err) {
+    console.error(`Error in ${lockKey}:`, err.message);
+  }
+}
 
 const app = createApp(prisma);
 const PORT = process.env.PORT || 3001;
@@ -179,12 +191,12 @@ const server = app.listen(PORT, () => {
   console.log(`🚀 LMS Backend running on port ${PORT}`);
   console.log(`📚 Environment: ${process.env.NODE_ENV || 'development'}`);
 
-  // Run cleanup on startup and every 24 hours
-  runCleanup();
-  setInterval(runCleanup, 24 * 60 * 60 * 1000);
+  // Run cleanup on startup and every 24 hours (distributed lock prevents duplicates)
+  runWithLock('cron:cleanup', runCleanup);
+  setInterval(() => runWithLock('cron:cleanup', runCleanup), 24 * 60 * 60 * 1000);
 
-  // Run email sequences every hour
-  setInterval(runEmailSequences, 60 * 60 * 1000);
+  // Run email sequences every hour (distributed lock prevents duplicates)
+  setInterval(() => runWithLock('cron:email-sequences', runEmailSequences), 60 * 60 * 1000);
 });
 
 // Graceful shutdown — drain in-flight requests before exiting

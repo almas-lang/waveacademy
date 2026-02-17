@@ -47,26 +47,28 @@ export const useAuthStore = create<AuthState>()(
   )
 );
 
-// Hook to wait for hydration - checks both zustand state and localStorage directly
+// Hook to wait for hydration — uses Zustand subscribe (no polling)
 export const useAuthHydration = () => {
-  const [isReady, setIsReady] = useState(false);
+  const [isReady, setIsReady] = useState(() => useAuthStore.getState()._hasHydrated);
 
   useEffect(() => {
-    // Small delay to ensure zustand has time to hydrate
-    // This is more reliable than depending on _hasHydrated state
-    const checkHydration = () => {
-      const hasHydrated = useAuthStore.getState()._hasHydrated;
-      if (hasHydrated) {
-        setIsReady(true);
-      } else {
-        // Check again after a short delay
-        setTimeout(checkHydration, 50);
-      }
-    };
+    if (isReady) return;
 
-    // Start checking immediately
-    checkHydration();
-  }, []);
+    const unsub = useAuthStore.subscribe((state) => {
+      if (state._hasHydrated) {
+        setIsReady(true);
+        unsub();
+      }
+    });
+
+    // Check once more in case it hydrated between render and effect
+    if (useAuthStore.getState()._hasHydrated) {
+      setIsReady(true);
+      unsub();
+    }
+
+    return unsub;
+  }, [isReady]);
 
   return isReady;
 };

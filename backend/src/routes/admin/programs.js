@@ -5,6 +5,7 @@ const { authenticate, requireAdmin } = require('../../middleware/auth');
 const { cacheGet, cacheDel } = require('../../utils/cache');
 const { deleteR2File, deleteR2Files } = require('../../utils/r2');
 const { parsePagination } = require('../../utils/pagination');
+const { logAudit } = require('../../utils/audit');
 
 // Clear program list cache (known key patterns only — avoids expensive SCAN)
 async function clearProgramsCache() {
@@ -432,10 +433,11 @@ router.delete('/:id', async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    // Collect R2 file URLs before deletion (thumbnails, PDFs, attachments)
+    // Collect name + R2 file URLs before deletion
     const program = await req.prisma.program.findUnique({
       where: { id },
       select: {
+        name: true,
         thumbnailUrl: true,
         lessons: {
           select: {
@@ -449,6 +451,14 @@ router.delete('/:id', async (req, res, next) => {
     });
 
     await req.prisma.program.delete({ where: { id } });
+
+    logAudit(req.prisma, {
+      admin: req.user,
+      action: 'DELETE_PROGRAM',
+      targetType: 'Program',
+      targetId: id,
+      details: { name: program?.name },
+    });
 
     // Clean up R2 files in background (fire-and-forget)
     if (program) {
@@ -730,56 +740,94 @@ router.put('/:id/reorder', async (req, res, next) => {
       });
     }
 
-    // Process each item update — verify ownership before updating
-    for (const item of items) {
-      const { id, type, orderIndex, parentId, parentType } = item;
+    // Verify ownership in bulk, then batch all updates in a transaction
+    const topicItems = items.filter(i => i.type === 'topic');
+    const subtopicItems = items.filter(i => i.type === 'subtopic');
+    const lessonItems = items.filter(i => i.type === 'lesson');
 
-      if (type === 'topic') {
-        const topic = await req.prisma.topic.findUnique({ where: { id }, select: { programId: true } });
-        if (!topic || topic.programId !== programId) continue;
-        await req.prisma.topic.update({
-          where: { id },
-          data: { orderIndex }
-        });
-      } else if (type === 'subtopic') {
-        const subtopic = await req.prisma.subtopic.findUnique({
-          where: { id },
-          select: { topic: { select: { programId: true } }, topicId: true }
-        });
-        if (!subtopic || subtopic.topic.programId !== programId) continue;
-        await req.prisma.subtopic.update({
-          where: { id },
-          data: {
-            orderIndex,
-            ...(parentId ? { topicId: parentId } : {})
-          }
-        });
-      } else if (type === 'lesson') {
-        const lesson = await req.prisma.lesson.findUnique({ where: { id }, select: { programId: true } });
-        if (!lesson || lesson.programId !== programId) continue;
-        const updateData = { orderIndex };
+    // Verify ownership for all items in 3 queries (not N)
+    const [ownedTopics, ownedSubtopics, ownedLessons] = await Promise.all([
+      topicItems.length > 0
+        ? req.prisma.topic.findMany({
+            where: { id: { in: topicItems.map(i => i.id) }, programId },
+            select: { id: true }
+          })
+        : [],
+      subtopicItems.length > 0
+        ? req.prisma.subtopic.findMany({
+            where: { id: { in: subtopicItems.map(i => i.id) }, topic: { programId } },
+            select: { id: true }
+          })
+        : [],
+      lessonItems.length > 0
+        ? req.prisma.lesson.findMany({
+            where: { id: { in: lessonItems.map(i => i.id) }, programId },
+            select: { id: true }
+          })
+        : [],
+    ]);
 
-        // Handle lesson parent changes
-        if (parentType === 'program' || !parentId) {
-          updateData.topicId = null;
-          updateData.subtopicId = null;
-        } else if (parentType === 'topic') {
-          updateData.topicId = parentId;
-          updateData.subtopicId = null;
-        } else if (parentType === 'subtopic') {
-          updateData.subtopicId = parentId;
-          const subtopic = await req.prisma.subtopic.findUnique({
-            where: { id: parentId },
-            select: { topicId: true }
-          });
-          updateData.topicId = subtopic?.topicId || null;
+    const ownedTopicIds = new Set(ownedTopics.map(t => t.id));
+    const ownedSubtopicIds = new Set(ownedSubtopics.map(s => s.id));
+    const ownedLessonIds = new Set(ownedLessons.map(l => l.id));
+
+    // Resolve subtopic parents for lessons that move under subtopics
+    const subtopicParentIds = lessonItems
+      .filter(i => i.parentType === 'subtopic' && i.parentId)
+      .map(i => i.parentId);
+    const subtopicParents = subtopicParentIds.length > 0
+      ? await req.prisma.subtopic.findMany({
+          where: { id: { in: subtopicParentIds } },
+          select: { id: true, topicId: true }
+        })
+      : [];
+    const subtopicTopicMap = Object.fromEntries(subtopicParents.map(s => [s.id, s.topicId]));
+
+    // Build all update operations and run in a single transaction
+    const updates = [];
+
+    for (const item of topicItems) {
+      if (!ownedTopicIds.has(item.id)) continue;
+      updates.push(req.prisma.topic.update({
+        where: { id: item.id },
+        data: { orderIndex: item.orderIndex }
+      }));
+    }
+
+    for (const item of subtopicItems) {
+      if (!ownedSubtopicIds.has(item.id)) continue;
+      updates.push(req.prisma.subtopic.update({
+        where: { id: item.id },
+        data: {
+          orderIndex: item.orderIndex,
+          ...(item.parentId ? { topicId: item.parentId } : {})
         }
+      }));
+    }
 
-        await req.prisma.lesson.update({
-          where: { id },
-          data: updateData
-        });
+    for (const item of lessonItems) {
+      if (!ownedLessonIds.has(item.id)) continue;
+      const updateData = { orderIndex: item.orderIndex };
+
+      if (item.parentType === 'program' || !item.parentId) {
+        updateData.topicId = null;
+        updateData.subtopicId = null;
+      } else if (item.parentType === 'topic') {
+        updateData.topicId = item.parentId;
+        updateData.subtopicId = null;
+      } else if (item.parentType === 'subtopic') {
+        updateData.subtopicId = item.parentId;
+        updateData.topicId = subtopicTopicMap[item.parentId] || null;
       }
+
+      updates.push(req.prisma.lesson.update({
+        where: { id: item.id },
+        data: updateData
+      }));
+    }
+
+    if (updates.length > 0) {
+      await req.prisma.$transaction(updates);
     }
 
     await touchProgram(req.prisma, programId);

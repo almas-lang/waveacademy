@@ -246,7 +246,14 @@ router.post('/webhook', async (req, res, next) => {
       return res.status(401).json({ success: false, error: 'Invalid signature' });
     }
 
-    const payload = typeof req.body === 'string' ? JSON.parse(req.body) : JSON.parse(rawBody);
+    let payload;
+    try {
+      payload = typeof req.body === 'string' ? JSON.parse(req.body) : JSON.parse(rawBody);
+    } catch (parseErr) {
+      console.error('Webhook JSON parse error:', parseErr.message);
+      return res.status(200).json({ success: true }); // Acknowledge to stop retries
+    }
+
     const orderData = payload?.data?.order;
     const paymentData = payload?.data?.payment;
 
