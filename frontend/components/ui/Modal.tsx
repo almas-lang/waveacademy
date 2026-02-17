@@ -61,7 +61,6 @@ export default function Modal({
       {/* Backdrop */}
       <div
         className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity animate-fade-in"
-        onClick={onClose}
         aria-hidden="true"
       />
 
@@ -70,14 +69,14 @@ export default function Modal({
         <div
           className={clsx(
             'relative w-full bg-white rounded-xl shadow-elevated transform transition-all',
-            'animate-scale-in',
+            'animate-scale-in flex flex-col max-h-[calc(100vh-2rem)]',
             sizes[size]
           )}
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
           {(title || showCloseButton) && (
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 flex-shrink-0">
               {title && (
                 <h3 id="modal-title" className="text-lg font-semibold text-slate-900">{title}</h3>
               )}
@@ -96,7 +95,7 @@ export default function Modal({
           )}
 
           {/* Content */}
-          <div className="px-6 py-5">{children}</div>
+          <div className="px-6 py-5 overflow-y-auto flex-1 min-h-0">{children}</div>
         </div>
       </div>
     </div>
@@ -115,8 +114,8 @@ Modal.Footer = function ModalFooter({
     <div
       className={clsx(
         'flex items-center justify-end gap-3 px-6 py-4',
-        'bg-slate-50/80 border-t border-slate-100 rounded-b-xl',
-        '-mx-6 -mb-5 mt-5',
+        'bg-slate-50 border-t border-slate-100 rounded-b-xl',
+        '-mx-6 -mb-5 mt-5 sticky bottom-[-20px]',
         className
       )}
     >
