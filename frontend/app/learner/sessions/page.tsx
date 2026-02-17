@@ -40,6 +40,7 @@ export default function LearnerSessionsPage() {
   const [showMonthPicker, setShowMonthPicker] = useState(false);
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
   const [selectedSession, setSelectedSession] = useState<UpcomingSession | null>(null);
+  const [pastExpanded, setPastExpanded] = useState(false);
 
   // Load persisted view preference
   useEffect(() => {
@@ -86,7 +87,7 @@ export default function LearnerSessionsPage() {
     const upcoming: UpcomingSession[] = [];
     for (const s of monthSessions) {
       const end = s.endTime ? new Date(s.endTime) : new Date(new Date(s.startTime).getTime() + 60 * 60 * 1000);
-      if (end < now) {
+      if (end < now && !isToday(new Date(s.startTime))) {
         past.push(s);
       } else {
         upcoming.push(s);
@@ -145,7 +146,7 @@ export default function LearnerSessionsPage() {
     ? sessionsByDate[format(selectedDay, 'yyyy-MM-dd')] || []
     : [];
 
-  const renderSessionCard = (session: UpcomingSession, clickable = true, fullDescription = false) => {
+  const renderSessionCard = (session: UpcomingSession, clickable = true, fullDescription = false, todayHighlight = false) => {
     const isLive = isSessionLive(session.startTime, session.endTime);
     const sessionPassed = isPast(new Date(session.endTime || session.startTime));
 
@@ -160,7 +161,7 @@ export default function LearnerSessionsPage() {
             ? 'border-emerald-300 bg-emerald-50/50 shadow-emerald-100'
             : sessionPassed
             ? 'border-slate-200/80 opacity-60'
-            : 'border-slate-200/80 hover:shadow-elevated'
+            : `border-slate-200/80 hover:shadow-elevated${todayHighlight ? ' border-l-[3px] border-l-accent-400' : ''}`
         }`}
       >
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -225,32 +226,44 @@ export default function LearnerSessionsPage() {
 
   const renderDateGroup = (dateKey: string, daySessions: UpcomingSession[]) => {
     const date = new Date(dateKey + 'T00:00:00');
+    const today = isToday(date);
 
     return (
-      <div key={dateKey}>
-        {/* Date Header */}
-        <div className="flex items-center gap-3 mb-3">
-          <div className="w-10 h-10 bg-accent-500 rounded-lg flex items-center justify-center">
-            <Calendar className="w-5 h-5 text-white" />
-          </div>
-          <div>
-            <span className="font-semibold text-slate-800">{getDateLabel(date)}</span>
-            {!isToday(date) && !isTomorrow(date) && (
-              <p className="text-xs text-slate-500">{format(date, 'MMMM yyyy')}</p>
-            )}
-          </div>
-          {isToday(date) && (
-            <Badge variant="info" size="sm">Today</Badge>
-          )}
+      <div
+        key={dateKey}
+        className={today ? 'bg-accent-50 -mx-4 px-4 py-3 rounded-xl border-l-4 border-accent-500' : ''}
+      >
+        {/* Compact Date Header */}
+        <div className="flex items-center gap-2 mb-3">
+          <span className={`w-2 h-2 rounded-full shrink-0 ${today ? 'bg-accent-500' : 'bg-slate-300'}`} />
+          <span className="font-semibold text-slate-800">{getDateLabel(date)}</span>
+          {today && <Badge variant="accent" size="sm">Today</Badge>}
         </div>
 
         {/* Sessions for this date */}
-        <div className="space-y-3 ml-[52px]">
-          {daySessions.map((session) => renderSessionCard(session))}
+        <div className="space-y-3 ml-4">
+          {daySessions.map((session) => renderSessionCard(session, true, false, today))}
         </div>
       </div>
     );
   };
+
+  const renderCompactPastRow = (session: UpcomingSession) => (
+    <div
+      key={session.id}
+      onClick={() => setSelectedSession(session)}
+      className="flex items-center gap-3 py-2 border-b border-slate-100 last:border-0 cursor-pointer hover:bg-slate-50 transition-colors px-1"
+    >
+      <span className="text-xs text-slate-400 shrink-0 tabular-nums">
+        {format(new Date(session.startTime), 'h:mm a')}
+        {session.endTime && ` – ${format(new Date(session.endTime), 'h:mm a')}`}
+      </span>
+      <span className="text-sm text-slate-600 truncate flex-1">{session.name}</span>
+      {session.programName && (
+        <Badge variant="neutral" size="sm">{session.programName}</Badge>
+      )}
+    </div>
+  );
 
   const renderListView = () => {
     if (monthSessions.length === 0) {
@@ -264,20 +277,51 @@ export default function LearnerSessionsPage() {
 
     return (
       <div className="space-y-6">
-        {/* Past sessions */}
-        {pastDates.map(dateKey => renderDateGroup(dateKey, pastGrouped[dateKey]))}
+        {/* Upcoming sessions first */}
+        {upcomingDates.map(dateKey => renderDateGroup(dateKey, upcomingGrouped[dateKey]))}
 
-        {/* Separator between past and upcoming */}
-        {pastDates.length > 0 && upcomingDates.length > 0 && (
-          <div className="flex items-center gap-3 py-2">
-            <div className="flex-1 border-t border-accent-200" />
-            <span className="text-sm font-medium text-accent-600 px-2">Upcoming</span>
-            <div className="flex-1 border-t border-accent-200" />
+        {/* No upcoming sessions message */}
+        {upcomingDates.length === 0 && pastDates.length > 0 && (
+          <div className="text-center py-6 text-sm text-slate-500">
+            No upcoming sessions this month
           </div>
         )}
 
-        {/* Upcoming sessions */}
-        {upcomingDates.map(dateKey => renderDateGroup(dateKey, upcomingGrouped[dateKey]))}
+        {/* Collapsible past sessions */}
+        {pastDates.length > 0 && (
+          <div>
+            <button
+              onClick={() => setPastExpanded(!pastExpanded)}
+              className="flex items-center gap-2 w-full py-3 text-sm font-medium text-slate-500 hover:text-slate-700 transition-colors"
+            >
+              <div className="flex-1 border-t border-slate-200" />
+              <span className="flex items-center gap-1.5 px-2 shrink-0">
+                <ChevronRight className={`w-3.5 h-3.5 transition-transform ${pastExpanded ? 'rotate-90' : ''}`} />
+                Past Sessions ({pastSessions.length})
+              </span>
+              <div className="flex-1 border-t border-slate-200" />
+            </button>
+
+            {pastExpanded && (
+              <div className="space-y-4 mt-2">
+                {pastDates.map(dateKey => {
+                  const date = new Date(dateKey + 'T00:00:00');
+                  return (
+                    <div key={dateKey}>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-slate-300 shrink-0" />
+                        <span className="text-xs font-medium text-slate-400">{format(date, 'EEEE, MMMM d')}</span>
+                      </div>
+                      <div className="ml-4">
+                        {pastGrouped[dateKey].map(session => renderCompactPastRow(session))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     );
   };

@@ -4,7 +4,7 @@ import clsx from 'clsx';
 import { ReactNode } from 'react';
 
 interface BadgeProps {
-  variant?: 'success' | 'warning' | 'error' | 'info' | 'neutral';
+  variant?: 'success' | 'warning' | 'error' | 'info' | 'neutral' | 'accent';
   size?: 'sm' | 'md';
   children: ReactNode;
   className?: string;
@@ -17,6 +17,7 @@ const variants = {
   error: 'bg-red-50 text-red-700 ring-1 ring-inset ring-red-600/20',
   info: 'bg-blue-50 text-blue-700 ring-1 ring-inset ring-blue-600/20',
   neutral: 'bg-slate-100 text-slate-600 ring-1 ring-inset ring-slate-500/10',
+  accent: 'bg-accent-50 text-accent-700 ring-1 ring-inset ring-accent-500/20',
 };
 
 const dotColors = {
@@ -25,6 +26,7 @@ const dotColors = {
   error: 'bg-red-500',
   info: 'bg-blue-500',
   neutral: 'bg-slate-400',
+  accent: 'bg-accent-500',
 };
 
 const sizes = {
