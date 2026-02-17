@@ -5,6 +5,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import { useAuthStore } from '@/lib/auth-store';
 import { AdminSidebar } from '@/components/admin';
 import { PageLoading } from '@/components/ui/LoadingSpinner';
+import { ErrorBoundary } from '@/components/ui';
 import { SidebarProvider } from '@/lib/sidebar-context';
 
 export default function AdminLayout({
@@ -68,7 +69,9 @@ export default function AdminLayout({
       />
       <main className="flex-1 flex flex-col min-w-0 overflow-y-auto overflow-x-hidden">
         <SidebarProvider onOpen={openSidebar}>
-          {children}
+          <ErrorBoundary>
+            {children}
+          </ErrorBoundary>
         </SidebarProvider>
       </main>
     </div>

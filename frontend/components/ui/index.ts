@@ -8,3 +8,4 @@ export { default as Pagination } from './Pagination';
 export { default as LoadingSpinner, PageLoading, InlineLoading } from './LoadingSpinner';
 export { default as EmptyState } from './EmptyState';
 export { default as DropdownMenu, DropdownItem, DropdownDivider } from './DropdownMenu';
+export { default as ErrorBoundary } from './ErrorBoundary';

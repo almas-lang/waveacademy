@@ -175,7 +175,7 @@ async function runEmailSequences() {
 }
 
 // Start server
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`🚀 LMS Backend running on port ${PORT}`);
   console.log(`📚 Environment: ${process.env.NODE_ENV || 'development'}`);
 
@@ -187,12 +187,26 @@ app.listen(PORT, () => {
   setInterval(runEmailSequences, 60 * 60 * 1000);
 });
 
-// Graceful shutdown
-process.on('SIGTERM', async () => {
-  console.log('SIGTERM received, shutting down...');
-  await prisma.$disconnect();
-  process.exit(0);
-});
+// Graceful shutdown — drain in-flight requests before exiting
+function gracefulShutdown(signal) {
+  console.log(`${signal} received, shutting down gracefully...`);
+
+  // Stop accepting new connections, wait for in-flight requests to finish
+  server.close(async () => {
+    console.log('All connections closed.');
+    await prisma.$disconnect();
+    process.exit(0);
+  });
+
+  // Force exit after 10s if connections don't drain (Railway sends SIGKILL at 10s)
+  setTimeout(() => {
+    console.error('Forced shutdown after timeout.');
+    process.exit(1);
+  }, 10_000).unref();
+}
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
 // Global error handlers — prevent silent crashes
 process.on('uncaughtException', (error) => {

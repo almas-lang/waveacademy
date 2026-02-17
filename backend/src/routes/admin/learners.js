@@ -4,6 +4,7 @@ const router = express.Router();
 const crypto = require('crypto');
 const { authenticate, requireAdmin } = require('../../middleware/auth');
 const { sendPasswordSetupEmail, sendPasswordResetEmail } = require('../../utils/email');
+const { parsePagination } = require('../../utils/pagination');
 
 router.use(authenticate);
 router.use(requireAdmin);
@@ -14,8 +15,8 @@ router.use(requireAdmin);
  */
 router.get('/', async (req, res, next) => {
   try {
-    const { status, programId, search, page = 1, limit = 20 } = req.query;
-    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const { status, programId, search } = req.query;
+    const { page, limit, skip } = parsePagination(req.query);
 
     const where = {
       role: 'LEARNER'
@@ -49,7 +50,7 @@ router.get('/', async (req, res, next) => {
           }
         },
         skip,
-        take: parseInt(limit),
+        take: limit,
         orderBy: { createdAt: 'desc' }
       }),
       req.prisma.user.count({ where })
@@ -80,9 +81,9 @@ router.get('/', async (req, res, next) => {
         learners: formattedLearners,
         pagination: {
           total,
-          page: parseInt(page),
-          limit: parseInt(limit),
-          totalPages: Math.ceil(total / parseInt(limit))
+          page,
+          limit,
+          totalPages: Math.ceil(total / limit)
         }
       }
     });

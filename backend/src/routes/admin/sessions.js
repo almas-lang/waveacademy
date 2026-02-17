@@ -3,6 +3,7 @@ const express = require('express');
 const router = express.Router();
 const { authenticate, requireAdmin } = require('../../middleware/auth');
 const { expandRecurringSession } = require('../../utils/recurrence');
+const { parsePagination } = require('../../utils/pagination');
 
 router.use(authenticate);
 router.use(requireAdmin);
@@ -13,7 +14,8 @@ router.use(requireAdmin);
  */
 router.get('/', async (req, res, next) => {
   try {
-    const { from, to, programId, page = 1, limit = 50 } = req.query;
+    const { from, to, programId } = req.query;
+    const { page, limit } = parsePagination(req.query, { defaultLimit: 50 });
 
     const programFilter = programId
       ? {
@@ -82,8 +84,8 @@ router.get('/', async (req, res, next) => {
 
     // Paginate
     const total = expandedSessions.length;
-    const skip = (parseInt(page) - 1) * parseInt(limit);
-    const paginatedSessions = expandedSessions.slice(skip, skip + parseInt(limit));
+    const skip = (page - 1) * limit;
+    const paginatedSessions = expandedSessions.slice(skip, skip + limit);
 
     const formattedSessions = paginatedSessions.map(session => ({
       id: session.id,
@@ -105,9 +107,9 @@ router.get('/', async (req, res, next) => {
         sessions: formattedSessions,
         pagination: {
           total,
-          page: parseInt(page),
-          limit: parseInt(limit),
-          totalPages: Math.ceil(total / parseInt(limit))
+          page,
+          limit,
+          totalPages: Math.ceil(total / limit)
         }
       }
     });

@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { authenticate, requireAdmin } = require('../../middleware/auth');
+const { parsePagination } = require('../../utils/pagination');
 
 // Apply auth to all routes
 router.use(authenticate);
@@ -9,13 +10,12 @@ router.use(requireAdmin);
 // GET /admin/notifications - Get all notifications (admin view)
 router.get('/', async (req, res, next) => {
   try {
-    const { page = 1, limit = 50 } = req.query;
-    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const { page, limit, skip } = parsePagination(req.query, { defaultLimit: 50 });
 
     const [notifications, total] = await Promise.all([
       req.prisma.notification.findMany({
         skip,
-        take: parseInt(limit),
+        take: limit,
         orderBy: { createdAt: 'desc' },
         include: {
           user: {
@@ -29,10 +29,10 @@ router.get('/', async (req, res, next) => {
     res.json({
       notifications,
       pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
+        page,
+        limit,
         total,
-        totalPages: Math.ceil(total / parseInt(limit))
+        totalPages: Math.ceil(total / limit)
       }
     });
   } catch (error) {

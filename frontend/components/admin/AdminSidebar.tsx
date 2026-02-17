@@ -12,6 +12,7 @@ import {
   X,
   ChevronsLeft,
   ChevronsRight,
+  GraduationCap,
 } from 'lucide-react';
 import clsx from 'clsx';
 
@@ -85,8 +86,8 @@ export default function AdminSidebar({ isOpen, onClose }: AdminSidebarProps) {
         )}>
           <Link href="/admin" className="flex items-center gap-2.5 group">
             <div className="relative flex-shrink-0">
-              <div className="w-9 h-9 bg-white rounded-lg flex items-center justify-center shadow-sm">
-                <span className="text-primary-600 font-bold text-sm tracking-tight">WA</span>
+              <div className="w-9 h-9 bg-accent-500 rounded-lg flex items-center justify-center shadow-sm">
+                <GraduationCap className="w-5 h-5 text-white" />
               </div>
               <div className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-accent-500 rounded-full ring-2 ring-primary-500" />
             </div>

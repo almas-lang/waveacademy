@@ -151,21 +151,32 @@ router.post('/verify', authenticate, requireLearner, async (req, res, next) => {
     const paymentDetails = cashfreeStatus?.filter?.(p => p.payment_status === 'SUCCESS')?.[0];
 
     if (paymentDetails) {
-      // Update payment + enrollment
-      await req.prisma.$transaction([
-        req.prisma.payment.update({
+      // Update payment + enrollment (interactive transaction to prevent race)
+      const updated = await req.prisma.$transaction(async (tx) => {
+        const current = await tx.payment.findUnique({ where: { id: payment.id } });
+        if (current.status === 'SUCCESS') return false;
+
+        await tx.payment.update({
           where: { id: payment.id },
           data: {
             status: 'SUCCESS',
             cashfreePaymentId: paymentDetails.cf_payment_id?.toString(),
             paymentMethod: paymentDetails.payment_group || null
           }
-        }),
-        req.prisma.enrollment.update({
+        });
+        await tx.enrollment.update({
           where: { id: payment.enrollmentId },
           data: { type: 'PAID', paidAt: new Date() }
-        })
-      ]);
+        });
+        return true;
+      });
+
+      if (!updated) {
+        return res.json({
+          success: true,
+          data: { status: 'SUCCESS', message: 'Payment already verified' }
+        });
+      }
 
       // Bust learner caches
       await Promise.all([
@@ -270,35 +281,42 @@ router.post('/webhook', async (req, res, next) => {
         return res.status(200).json({ success: true });
       }
 
-      await req.prisma.$transaction([
-        req.prisma.payment.update({
+      const updated = await req.prisma.$transaction(async (tx) => {
+        // Re-read inside transaction to prevent race condition with duplicate webhooks
+        const current = await tx.payment.findUnique({ where: { id: payment.id } });
+        if (current.status === 'SUCCESS') return false;
+
+        await tx.payment.update({
           where: { id: payment.id },
           data: {
             status: 'SUCCESS',
             cashfreePaymentId: paymentData.cf_payment_id?.toString(),
             paymentMethod: paymentData.payment_group || null
           }
-        }),
-        req.prisma.enrollment.update({
+        });
+        await tx.enrollment.update({
           where: { id: payment.enrollmentId },
           data: { type: 'PAID', paidAt: new Date() }
-        })
-      ]);
+        });
+        return true;
+      });
 
-      // Bust caches
-      await Promise.all([
-        cacheDel(`learner:home:${payment.userId}`),
-        cacheDel(`learner:profile:${payment.userId}`)
-      ]);
+      if (updated) {
+        // Bust caches
+        await Promise.all([
+          cacheDel(`learner:home:${payment.userId}`),
+          cacheDel(`learner:profile:${payment.userId}`)
+        ]);
 
-      // Send confirmation email
-      sendPaymentConfirmationEmail(
-        payment.user.email,
-        payment.user.name,
-        payment.program.name,
-        parseFloat(payment.amount),
-        payment.program.currency || 'INR'
-      ).catch(err => console.error('Webhook: Failed to send payment email:', err));
+        // Send confirmation email
+        sendPaymentConfirmationEmail(
+          payment.user.email,
+          payment.user.name,
+          payment.program.name,
+          parseFloat(payment.amount),
+          payment.program.currency || 'INR'
+        ).catch(err => console.error('Webhook: Failed to send payment email:', err));
+      }
     } else if (paymentData?.payment_status === 'FAILED') {
       await req.prisma.payment.update({
         where: { id: payment.id },

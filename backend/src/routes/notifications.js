@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { authenticate } = require('../middleware/auth');
+const { parsePagination } = require('../utils/pagination');
 
 // Apply authentication to all routes
 router.use(authenticate);
@@ -9,8 +10,8 @@ router.use(authenticate);
 router.get('/', async (req, res, next) => {
   try {
     const userId = req.user.id;
-    const { page = 1, limit = 20, unreadOnly = false } = req.query;
-    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const { unreadOnly = false } = req.query;
+    const { page, limit, skip } = parsePagination(req.query);
 
     const where = {
       userId,
@@ -21,7 +22,7 @@ router.get('/', async (req, res, next) => {
       req.prisma.notification.findMany({
         where,
         skip,
-        take: parseInt(limit),
+        take: limit,
         orderBy: { createdAt: 'desc' }
       }),
       req.prisma.notification.count({ where }),
@@ -34,10 +35,10 @@ router.get('/', async (req, res, next) => {
       notifications,
       unreadCount,
       pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
+        page,
+        limit,
         total,
-        totalPages: Math.ceil(total / parseInt(limit))
+        totalPages: Math.ceil(total / limit)
       }
     });
   } catch (error) {

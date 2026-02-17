@@ -28,6 +28,8 @@ const models = [
   'session',
   'sessionProgram',
   'notification',
+  'payment',
+  'emailLog',
 ];
 
 function createMockPrisma() {

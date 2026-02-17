@@ -5,6 +5,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import { useAuthStore } from '@/lib/auth-store';
 import { LearnerSidebar } from '@/components/learner';
 import { PageLoading } from '@/components/ui/LoadingSpinner';
+import { ErrorBoundary } from '@/components/ui';
 import { SidebarProvider } from '@/lib/sidebar-context';
 
 export default function LearnerLayout({
@@ -68,7 +69,9 @@ export default function LearnerLayout({
       />
       <main className="flex-1 flex flex-col min-w-0 overflow-y-auto">
         <SidebarProvider onOpen={openSidebar}>
-          {children}
+          <ErrorBoundary>
+            {children}
+          </ErrorBoundary>
         </SidebarProvider>
       </main>
     </div>

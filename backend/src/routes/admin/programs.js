@@ -4,6 +4,7 @@ const router = express.Router();
 const { authenticate, requireAdmin } = require('../../middleware/auth');
 const { cacheGet, cacheDel } = require('../../utils/cache');
 const { deleteR2File, deleteR2Files } = require('../../utils/r2');
+const { parsePagination } = require('../../utils/pagination');
 
 // Clear program list cache (known key patterns only — avoids expensive SCAN)
 async function clearProgramsCache() {
@@ -31,13 +32,13 @@ router.use(requireAdmin);
  */
 router.get('/', async (req, res, next) => {
   try {
-    const { page = 1, limit = 20, all } = req.query;
-    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const { all } = req.query;
+    const { page, limit, skip } = parsePagination(req.query);
 
     // If 'all' is true, return all programs without pagination (for dropdowns)
     const paginationOptions = all === 'true' ? {} : {
       skip,
-      take: parseInt(limit)
+      take: limit
     };
 
     const cacheKey = `programs:list:${all}:${page}:${limit}`;
@@ -91,9 +92,9 @@ router.get('/', async (req, res, next) => {
         programs: programsWithStats,
         pagination: all === 'true' ? null : {
           total,
-          page: parseInt(page),
-          limit: parseInt(limit),
-          totalPages: Math.ceil(total / parseInt(limit))
+          page,
+          limit,
+          totalPages: Math.ceil(total / limit)
         }
       };
     }, 300); // 5 minutes

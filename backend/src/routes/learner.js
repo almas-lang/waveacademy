@@ -5,6 +5,7 @@ const crypto = require('crypto');
 const { authenticate, requireLearner } = require('../middleware/auth');
 const { cacheGet, cacheDel } = require('../utils/cache');
 const { expandRecurringSession } = require('../utils/recurrence');
+const { parsePagination } = require('../utils/pagination');
 
 router.use(authenticate);
 router.use(requireLearner);
@@ -859,8 +860,8 @@ router.post('/enroll/:programId', async (req, res, next) => {
 router.get('/discover', async (req, res, next) => {
   try {
     const userId = req.user.id;
-    const { page = 1, limit = 12, search } = req.query;
-    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const { search } = req.query;
+    const { page, limit, skip } = parsePagination(req.query, { defaultLimit: 12 });
 
     // Get enrolled program IDs
     const enrollments = await req.prisma.enrollment.findMany({
@@ -890,7 +891,7 @@ router.get('/discover', async (req, res, next) => {
         },
         orderBy: { createdAt: 'desc' },
         skip,
-        take: parseInt(limit)
+        take: limit
       }),
       req.prisma.program.count({ where })
     ]);
@@ -910,9 +911,9 @@ router.get('/discover', async (req, res, next) => {
         })),
         pagination: {
           total,
-          page: parseInt(page),
-          limit: parseInt(limit),
-          totalPages: Math.ceil(total / parseInt(limit))
+          page,
+          limit,
+          totalPages: Math.ceil(total / limit)
         }
       }
     });
