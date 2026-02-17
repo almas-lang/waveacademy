@@ -118,8 +118,8 @@ export default function ProgramsPage() {
           <Badge variant={program.isPublic ? 'info' : 'neutral'} size="sm">
             {program.isPublic ? 'Public' : 'Private'}
           </Badge>
-          <Badge variant={program.price && program.price > 0 ? 'warning' : 'success'} size="sm">
-            {program.price && program.price > 0 ? `₹${program.price}` : 'Free'}
+          <Badge variant={program.price && Number(program.price) > 0 ? 'warning' : 'success'} size="sm">
+            {program.price && Number(program.price) > 0 ? `₹${program.price}` : 'Free'}
           </Badge>
         </div>
       ),
