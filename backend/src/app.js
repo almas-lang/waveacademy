@@ -23,6 +23,9 @@ function createApp(prisma) {
   const app = express();
   const isTest = process.env.NODE_ENV === 'test';
 
+  // Trust Railway's reverse proxy (needed for correct req.ip, req.protocol, secure cookies)
+  app.set('trust proxy', 1);
+
   // Middleware
   const allowedOrigins = [
     'http://localhost:3000',

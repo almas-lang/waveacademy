@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Menu, LogOut, User, Search } from 'lucide-react';
 import { useAuthStore } from '@/lib/auth-store';
+import { authApi } from '@/lib/api';
 import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
 import NotificationDropdown from './NotificationDropdown';
@@ -19,7 +20,8 @@ export default function LearnerHeader({ title, subtitle, onMenuClick }: LearnerH
   const { user, logout } = useAuthStore();
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try { await authApi.logout(); } catch {}
     logout();
     router.push('/auth/login');
   };

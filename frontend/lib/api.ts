@@ -11,17 +11,20 @@ export const api = axios.create({
   withCredentials: true,
 });
 
+// Track whether we've already triggered a 401 redirect to prevent multiple simultaneous redirects
+let isRedirecting = false;
+
 // Response interceptor to handle auth errors
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/auth')) {
+      if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/auth') && !isRedirecting) {
         const errorCode = error.response?.data?.error?.code || '';
         const isAuthError = errorCode === 'UNAUTHORIZED' || errorCode === 'SESSION_EXPIRED';
 
         if (isAuthError) {
-          // Clear local user state and redirect — cookie is cleared server-side on logout
+          isRedirecting = true;
           localStorage.removeItem('auth-storage');
           window.location.href = '/auth/login';
         }
@@ -78,6 +81,11 @@ export const authApi = {
 
   logout: async () => {
     const response = await api.post('/auth/logout');
+    return response.data;
+  },
+
+  me: async () => {
+    const response = await api.get('/auth/me');
     return response.data;
   },
 

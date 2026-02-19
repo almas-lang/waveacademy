@@ -756,6 +756,24 @@ router.post('/admin/setup', async (req, res, next) => {
 });
 
 /**
+ * GET /auth/me
+ * Verify session and return current user
+ */
+router.get('/me', authenticate, async (req, res) => {
+  res.json({
+    success: true,
+    data: {
+      user: {
+        id: req.user.id,
+        email: req.user.email,
+        name: req.user.name,
+        role: req.user.role,
+      }
+    }
+  });
+});
+
+/**
  * POST /auth/logout
  * Logout - removes server-side session
  */

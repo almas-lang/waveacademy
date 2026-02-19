@@ -60,6 +60,14 @@ export default function LoginPage() {
       const response = await authApi.login(fields.email.value, fields.password.value);
 
       if (response.success) {
+        // Verify cookie was set by calling an authenticated endpoint
+        try {
+          await authApi.me();
+        } catch {
+          setFormError('Login succeeded but session could not be verified. Please try again or clear your browser cookies.');
+          return;
+        }
+
         login(response.data.user);
         toast.success('Welcome back!');
 
@@ -94,6 +102,15 @@ export default function LoginPage() {
       const response = await authApi.loginForce(fields.email.value, fields.password.value);
 
       if (response.success) {
+        // Verify cookie was set
+        try {
+          await authApi.me();
+        } catch {
+          setFormError('Login succeeded but session could not be verified. Please try again or clear your browser cookies.');
+          setShowMaxSessionsModal(false);
+          return;
+        }
+
         login(response.data.user);
         toast.success('Logged out from other devices. Welcome back!');
         setShowMaxSessionsModal(false);
