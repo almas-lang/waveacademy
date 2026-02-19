@@ -13,6 +13,7 @@ export const api = axios.create({
 
 // Track whether we've already triggered a 401 redirect to prevent multiple simultaneous redirects
 let isRedirecting = false;
+export function _resetRedirectFlag() { isRedirecting = false; }
 
 // Response interceptor to handle auth errors
 api.interceptors.response.use(

@@ -17,11 +17,13 @@ jest.mock('next/link', () => {
 // Mock auth API
 const loginMock = jest.fn();
 const checkAdminMock = jest.fn().mockResolvedValue({ data: { adminExists: true } });
+const meMock = jest.fn().mockResolvedValue({ success: true, data: { user: {} } });
 jest.mock('@/lib/api', () => ({
   authApi: {
     login: (...args: unknown[]) => loginMock(...args),
     checkAdminExists: () => checkAdminMock(),
     loginForce: jest.fn(),
+    me: () => meMock(),
   },
 }));
 

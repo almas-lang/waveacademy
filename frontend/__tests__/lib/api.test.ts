@@ -20,7 +20,7 @@ jest.mock('axios', () => ({
 }));
 
 import axios from 'axios';
-import { api, authApi, adminApi, learnerApi } from '@/lib/api';
+import { api, authApi, adminApi, learnerApi, _resetRedirectFlag } from '@/lib/api';
 
 // The imported `api` IS the mock instance returned by axios.create()
 const mockApi = api as any;
@@ -70,6 +70,7 @@ describe('api.ts', () => {
 
   describe('401 interceptor', () => {
     beforeEach(() => {
+      _resetRedirectFlag();
       Object.defineProperty(window, 'location', {
         writable: true,
         value: { href: '', pathname: '/dashboard' },
