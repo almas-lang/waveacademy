@@ -114,6 +114,22 @@ export function useDeleteProgram() {
   });
 }
 
+// Duplicate program
+export function useDuplicateProgram() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => adminApi.duplicateProgram(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: programKeys.all });
+      toast.success('Program duplicated successfully');
+    },
+    onError: (error: AxiosError<ApiErrorResponse>) => {
+      toast.error(error.response?.data?.error?.message || 'Failed to duplicate program');
+    },
+  });
+}
+
 // Toggle publish status
 export function useTogglePublish() {
   const queryClient = useQueryClient();

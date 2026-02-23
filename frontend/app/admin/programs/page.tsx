@@ -3,12 +3,12 @@
 import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
-import { Plus, BookOpen, Eye, Edit, Trash2, Globe, Lock } from 'lucide-react';
+import { Plus, BookOpen, Eye, Edit, Trash2, Globe, Lock, Copy } from 'lucide-react';
 import { AdminHeader } from '@/components/admin';
 import { useSidebar } from '@/lib/sidebar-context';
 import ProgramModal from '@/components/admin/ProgramModal';
 import { Button, Badge, Table, EmptyState, Modal, Pagination, DropdownMenu, DropdownItem, DropdownDivider, InlineLoading } from '@/components/ui';
-import { useProgramsPaginated, useDeleteProgram, useTogglePublish } from '@/hooks';
+import { useProgramsPaginated, useDeleteProgram, useTogglePublish, useDuplicateProgram } from '@/hooks';
 import { Program } from '@/types/admin';
 import { format } from 'date-fns';
 
@@ -26,6 +26,7 @@ export default function ProgramsPage() {
   }, [searchParams, router]);
   const [editingProgram, setEditingProgram] = useState<Program | null>(null);
   const [deletingProgram, setDeletingProgram] = useState<Program | null>(null);
+  const [duplicatingProgram, setDuplicatingProgram] = useState<Program | null>(null);
   const [page, setPage] = useState(1);
 
   const { data, isLoading, isError } = useProgramsPaginated({ page, limit: 20 });
@@ -33,6 +34,7 @@ export default function ProgramsPage() {
   const pagination = data?.pagination;
   const deleteProgram = useDeleteProgram();
   const togglePublish = useTogglePublish();
+  const duplicateProgram = useDuplicateProgram();
 
   const handleEdit = (program: Program) => {
     setEditingProgram(program);
@@ -58,6 +60,17 @@ export default function ProgramsPage() {
       });
     } catch {
       // Error handled by mutation onError
+    }
+  };
+
+  const handleDuplicate = async () => {
+    if (!duplicatingProgram) return;
+    try {
+      await duplicateProgram.mutateAsync(duplicatingProgram.id);
+    } catch {
+      // Error handled by mutation onError
+    } finally {
+      setDuplicatingProgram(null);
     }
   };
 
@@ -155,6 +168,10 @@ export default function ProgramsPage() {
           <DropdownItem onClick={() => handleEdit(program)}>
             <Edit className="w-4 h-4 text-slate-400" />
             Edit
+          </DropdownItem>
+          <DropdownItem onClick={() => setDuplicatingProgram(program)}>
+            <Copy className="w-4 h-4 text-slate-400" />
+            Make a Copy
           </DropdownItem>
           <DropdownItem onClick={() => handleTogglePublish(program)}>
             {program.isPublished ? (
@@ -304,6 +321,38 @@ export default function ProgramsPage() {
             isLoading={deleteProgram.isPending}
           >
             Delete Program
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      {/* Duplicate Confirmation Modal */}
+      <Modal
+        isOpen={!!duplicatingProgram}
+        onClose={() => setDuplicatingProgram(null)}
+        title="Make a Copy"
+        size="sm"
+      >
+        <div className="text-center py-2">
+          <div className="w-12 h-12 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Copy className="w-6 h-6 text-blue-600" />
+          </div>
+          <p className="text-slate-600 mb-2">
+            Create a copy of <strong className="text-slate-900">{duplicatingProgram?.name}</strong>?
+          </p>
+          <p className="text-sm text-slate-500">
+            All topics, subtopics, and lessons will be copied. The new program will be saved as a draft.
+          </p>
+        </div>
+        <Modal.Footer>
+          <Button variant="outline" onClick={() => setDuplicatingProgram(null)}>
+            Cancel
+          </Button>
+          <Button
+            variant="primary"
+            onClick={handleDuplicate}
+            isLoading={duplicateProgram.isPending}
+          >
+            Make a Copy
           </Button>
         </Modal.Footer>
       </Modal>

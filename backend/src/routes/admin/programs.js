@@ -426,6 +426,207 @@ router.post('/:id/publish', async (req, res, next) => {
 });
 
 /**
+ * POST /admin/programs/:id/duplicate
+ * Duplicate a program with all its content (topics, subtopics, lessons, attachments)
+ */
+router.post('/:id/duplicate', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    // Fetch program with full content tree
+    const source = await req.prisma.program.findUnique({
+      where: { id },
+      include: {
+        topics: {
+          include: {
+            subtopics: {
+              include: {
+                lessons: {
+                  include: { attachments: true },
+                  orderBy: { orderIndex: 'asc' }
+                }
+              },
+              orderBy: { orderIndex: 'asc' }
+            },
+            lessons: {
+              where: { subtopicId: null },
+              include: { attachments: true },
+              orderBy: { orderIndex: 'asc' }
+            }
+          },
+          orderBy: { orderIndex: 'asc' }
+        },
+        lessons: {
+          where: { topicId: null, subtopicId: null },
+          include: { attachments: true },
+          orderBy: { orderIndex: 'asc' }
+        }
+      }
+    });
+
+    if (!source) {
+      return res.status(404).json({
+        success: false,
+        error: { code: 'NOT_FOUND', message: 'Program not found' }
+      });
+    }
+
+    // Generate unique slug
+    const baseSlug = source.slug ? `${source.slug}-copy` : null;
+    let newSlug = baseSlug;
+    if (newSlug) {
+      let counter = 0;
+      while (true) {
+        const candidate = counter === 0 ? newSlug : `${newSlug}-${counter}`;
+        const existing = await req.prisma.program.findUnique({ where: { slug: candidate } });
+        if (!existing) {
+          newSlug = candidate;
+          break;
+        }
+        counter++;
+      }
+    }
+
+    // Create the duplicate program with all content in a transaction
+    const newProgram = await req.prisma.$transaction(async (tx) => {
+      // 1. Create program
+      const program = await tx.program.create({
+        data: {
+          name: `${source.name} (Copy)`,
+          description: source.description,
+          thumbnailUrl: source.thumbnailUrl,
+          isPublished: false,
+          isPublic: source.isPublic,
+          slug: newSlug,
+          price: source.price,
+          currency: source.currency,
+        }
+      });
+
+      // 2. Copy standalone lessons (no topic)
+      for (const lesson of source.lessons) {
+        const newLesson = await tx.lesson.create({
+          data: {
+            programId: program.id,
+            title: lesson.title,
+            type: lesson.type,
+            contentUrl: lesson.contentUrl,
+            contentText: lesson.contentText,
+            thumbnailUrl: lesson.thumbnailUrl,
+            instructorNotes: lesson.instructorNotes,
+            durationSeconds: lesson.durationSeconds,
+            orderIndex: lesson.orderIndex,
+            isFree: lesson.isFree,
+          }
+        });
+        if (lesson.attachments.length > 0) {
+          await tx.lessonAttachment.createMany({
+            data: lesson.attachments.map(att => ({
+              lessonId: newLesson.id,
+              name: att.name,
+              fileUrl: att.fileUrl,
+              fileType: att.fileType,
+            }))
+          });
+        }
+      }
+
+      // 3. Copy topics with their subtopics and lessons
+      for (const topic of source.topics) {
+        const newTopic = await tx.topic.create({
+          data: {
+            programId: program.id,
+            name: topic.name,
+            orderIndex: topic.orderIndex,
+          }
+        });
+
+        // Copy lessons directly under topic
+        for (const lesson of topic.lessons) {
+          const newLesson = await tx.lesson.create({
+            data: {
+              programId: program.id,
+              topicId: newTopic.id,
+              title: lesson.title,
+              type: lesson.type,
+              contentUrl: lesson.contentUrl,
+              contentText: lesson.contentText,
+              thumbnailUrl: lesson.thumbnailUrl,
+              instructorNotes: lesson.instructorNotes,
+              durationSeconds: lesson.durationSeconds,
+              orderIndex: lesson.orderIndex,
+              isFree: lesson.isFree,
+            }
+          });
+          if (lesson.attachments.length > 0) {
+            await tx.lessonAttachment.createMany({
+              data: lesson.attachments.map(att => ({
+                lessonId: newLesson.id,
+                name: att.name,
+                fileUrl: att.fileUrl,
+                fileType: att.fileType,
+              }))
+            });
+          }
+        }
+
+        // Copy subtopics with their lessons
+        for (const subtopic of topic.subtopics) {
+          const newSubtopic = await tx.subtopic.create({
+            data: {
+              topicId: newTopic.id,
+              name: subtopic.name,
+              orderIndex: subtopic.orderIndex,
+            }
+          });
+
+          for (const lesson of subtopic.lessons) {
+            const newLesson = await tx.lesson.create({
+              data: {
+                programId: program.id,
+                topicId: newTopic.id,
+                subtopicId: newSubtopic.id,
+                title: lesson.title,
+                type: lesson.type,
+                contentUrl: lesson.contentUrl,
+                contentText: lesson.contentText,
+                thumbnailUrl: lesson.thumbnailUrl,
+                instructorNotes: lesson.instructorNotes,
+                durationSeconds: lesson.durationSeconds,
+                orderIndex: lesson.orderIndex,
+                isFree: lesson.isFree,
+              }
+            });
+            if (lesson.attachments.length > 0) {
+              await tx.lessonAttachment.createMany({
+                data: lesson.attachments.map(att => ({
+                  lessonId: newLesson.id,
+                  name: att.name,
+                  fileUrl: att.fileUrl,
+                  fileType: att.fileType,
+                }))
+              });
+            }
+          }
+        }
+      }
+
+      return program;
+    });
+
+    clearProgramsCache();
+
+    res.status(201).json({
+      success: true,
+      data: { program: newProgram },
+      message: 'Program duplicated successfully'
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
  * DELETE /admin/programs/:id
  * Delete program and all content
  */

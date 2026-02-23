@@ -177,6 +177,11 @@ export const adminApi = {
     return response.data;
   },
 
+  duplicateProgram: async (id: string) => {
+    const response = await api.post(`/admin/programs/${id}/duplicate`);
+    return response.data;
+  },
+
   // Topics
   createTopic: async (data: { programId: string; name: string; orderIndex?: number }) => {
     const response = await api.post('/admin/programs/topics', data);
