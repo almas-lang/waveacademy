@@ -24,10 +24,11 @@ export default function LearnersPage() {
     }
   }, [searchParams, router]);
   const [deleteConfirm, setDeleteConfirm] = useState<Learner | null>(null);
-  const [filters, setFilters] = useState<LearnerFilters>({
+  const [filters, setFilters] = useState<LearnerFilters>(() => ({
     page: 1,
     limit: 20,
-  });
+    programId: searchParams.get('programId') || undefined,
+  }));
   const [searchInput, setSearchInput] = useState('');
 
   const { data: programs } = usePrograms();

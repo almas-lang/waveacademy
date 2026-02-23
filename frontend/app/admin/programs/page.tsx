@@ -113,7 +113,19 @@ export default function ProgramsPage() {
       key: 'learnerCount',
       header: 'Learners',
       render: (program: Program) => (
-        <span className="text-slate-600 font-medium">{program.learnerCount}</span>
+        program.learnerCount > 0 ? (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              router.push(`/admin/learners?programId=${program.id}`);
+            }}
+            className="text-blue-600 font-medium hover:text-blue-800 hover:underline transition-colors"
+          >
+            {program.learnerCount}
+          </button>
+        ) : (
+          <span className="text-slate-600 font-medium">0</span>
+        )
       ),
     },
     {
