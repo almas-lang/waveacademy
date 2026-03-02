@@ -29,11 +29,13 @@ function SetupPasswordForm() {
   const [error, setError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
 
-  // Password strength indicators
+  // Password strength indicators (must match backend validatePassword)
   const passwordChecks = {
     length: fields.password.value.length >= 8,
+    hasUppercase: /[A-Z]/.test(fields.password.value),
+    hasLowercase: /[a-z]/.test(fields.password.value),
     hasNumber: /\d/.test(fields.password.value),
-    hasLetter: /[a-zA-Z]/.test(fields.password.value),
+    hasSpecial: /[^A-Za-z0-9]/.test(fields.password.value),
   };
   const passwordStrength = Object.values(passwordChecks).filter(Boolean).length;
 
@@ -201,13 +203,13 @@ function SetupPasswordForm() {
               {fields.password.value && (
                 <div id="password-strength" className="mt-2 space-y-2 animate-slide-down">
                   <div className="flex gap-1">
-                    {[1, 2, 3].map((level) => (
+                    {[1, 2, 3, 4, 5].map((level) => (
                       <div
                         key={level}
                         className={`h-1 flex-1 rounded-full transition-all duration-300 ${
                           passwordStrength >= level
-                            ? passwordStrength === 1 ? 'bg-red-400'
-                            : passwordStrength === 2 ? 'bg-yellow-400'
+                            ? passwordStrength <= 2 ? 'bg-red-400'
+                            : passwordStrength <= 3 ? 'bg-yellow-400'
                             : 'bg-green-400'
                             : 'bg-slate-200'
                         }`}
@@ -219,13 +221,21 @@ function SetupPasswordForm() {
                       <Check className={`w-3 h-3 ${passwordChecks.length ? 'opacity-100' : 'opacity-40'}`} />
                       At least 8 characters
                     </span>
-                    <span className={`flex items-center gap-1.5 transition-colors ${passwordChecks.hasLetter ? 'text-green-600' : 'text-slate-400'}`}>
-                      <Check className={`w-3 h-3 ${passwordChecks.hasLetter ? 'opacity-100' : 'opacity-40'}`} />
-                      Contains a letter
+                    <span className={`flex items-center gap-1.5 transition-colors ${passwordChecks.hasUppercase ? 'text-green-600' : 'text-slate-400'}`}>
+                      <Check className={`w-3 h-3 ${passwordChecks.hasUppercase ? 'opacity-100' : 'opacity-40'}`} />
+                      Contains an uppercase letter
+                    </span>
+                    <span className={`flex items-center gap-1.5 transition-colors ${passwordChecks.hasLowercase ? 'text-green-600' : 'text-slate-400'}`}>
+                      <Check className={`w-3 h-3 ${passwordChecks.hasLowercase ? 'opacity-100' : 'opacity-40'}`} />
+                      Contains a lowercase letter
                     </span>
                     <span className={`flex items-center gap-1.5 transition-colors ${passwordChecks.hasNumber ? 'text-green-600' : 'text-slate-400'}`}>
                       <Check className={`w-3 h-3 ${passwordChecks.hasNumber ? 'opacity-100' : 'opacity-40'}`} />
                       Contains a number
+                    </span>
+                    <span className={`flex items-center gap-1.5 transition-colors ${passwordChecks.hasSpecial ? 'text-green-600' : 'text-slate-400'}`}>
+                      <Check className={`w-3 h-3 ${passwordChecks.hasSpecial ? 'opacity-100' : 'opacity-40'}`} />
+                      Contains a special character
                     </span>
                   </div>
                 </div>
