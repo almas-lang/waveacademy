@@ -133,6 +133,10 @@ export default function LessonViewerPage() {
   const queryClient = useQueryClient();
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
+  // Stable ref for updateProgress to avoid re-running the effect on every render
+  const updateProgressRef = useRef(updateProgress);
+  useEffect(() => { updateProgressRef.current = updateProgress; }, [updateProgress]);
+
   // Track video progress via Bunny's player.js library
   useEffect(() => {
     if (!data || data.lesson.type !== 'VIDEO' || !data.lesson.contentUrl) return;
@@ -140,6 +144,7 @@ export default function LessonViewerPage() {
     if (!iframe) return;
 
     let destroyed = false;
+    let player: any = null;
 
     const init = () => {
       if (destroyed) return;
@@ -148,13 +153,12 @@ export default function LessonViewerPage() {
         console.error('[VideoProgress] playerjs failed to load');
         return;
       }
-      const player = new w.playerjs.Player(iframe);
+      player = new w.playerjs.Player(iframe);
       player.on('ready', () => {
         if (destroyed) return;
-        console.log('[VideoProgress] Player ready, subscribing to timeupdate');
         player.on('timeupdate', (value: { seconds: number; duration: number }) => {
           if (!destroyed) {
-            updateProgress.mutate({
+            updateProgressRef.current.mutate({
               lessonId,
               watchPositionSeconds: Math.floor(value.seconds),
             });
@@ -175,8 +179,12 @@ export default function LessonViewerPage() {
 
     return () => {
       destroyed = true;
+      if (player) {
+        try { player.off('timeupdate'); } catch (_) {}
+        try { player.off('ready'); } catch (_) {}
+      }
     };
-  }, [data, lessonId, updateProgress]);
+  }, [data, lessonId]);
 
   // Flush pending progress and invalidate home cache when navigating away
   useEffect(() => {
